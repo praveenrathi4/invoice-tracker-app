@@ -46,8 +46,8 @@ def extract_invoice_data_from_pdf(file, supplier_name, company_name):
         "reference": None
     }
 
-# Insert record into Supabase
-def insert_invoice_to_supabase(data):
+# Insert records into Supabase
+def insert_batch_to_supabase(data_list):
     url = f"{SUPABASE_URL}/rest/v1/{TABLE_NAME}"
     headers = {
         "apikey": SUPABASE_API_KEY,
@@ -55,7 +55,7 @@ def insert_invoice_to_supabase(data):
         "Content-Type": "application/json",
         "Prefer": "return=representation"
     }
-    response = requests.post(url, json=[data], headers=headers)
+    response = requests.post(url, json=data_list, headers=headers)
     return response.status_code, response.json()
 
 # Streamlit UI
@@ -69,37 +69,37 @@ company_options = get_dropdown_values("name", "company_names")
 supplier_name = st.selectbox("Select Supplier Name", supplier_options)
 company_name = st.selectbox("Select Company Name", company_options)
 
-st.write("Suppliers found:", supplier_options)
-st.write("Companies found:", company_options)
+uploaded_files = st.file_uploader("Upload One or More Invoice PDFs", type=["pdf"], accept_multiple_files=True)
 
+if uploaded_files:
+    extracted_rows = []
+    for file in uploaded_files:
+        extracted = extract_invoice_data_from_pdf(file, supplier_name, company_name)
 
-uploaded_file = st.file_uploader("Upload Invoice PDF", type=["pdf"])
+        # Format dates
+        for key in ["invoice_date", "due_date"]:
+            try:
+                if extracted[key]:
+                    extracted[key] = datetime.strptime(extracted[key], "%d %b %Y").strftime("%d/%m/%Y")
+            except:
+                pass
 
-if uploaded_file:
-    extracted = extract_invoice_data_from_pdf(uploaded_file, supplier_name, company_name)
-
-    # Format dates
-    for key in ["invoice_date", "due_date"]:
-        try:
-            if extracted[key]:
-                extracted[key] = datetime.strptime(extracted[key], "%d %b %Y").strftime("%d/%m/%Y")
-        except:
-            pass
-
-    st.subheader("🧾 Extracted Invoice Data")
-    st.json(extracted)
-
-    if st.button("✅ Save to Supabase"):
         try:
             extracted["amount"] = float(extracted["amount"].replace(",", "")) if extracted["amount"] else None
         except:
-            st.error("Amount format is invalid.")
+            st.warning(f"Invalid amount format in file: {file.name}")
             extracted["amount"] = None
 
         extracted["status"] = "Unpaid"
-        status_code, response = insert_invoice_to_supabase(extracted)
+        extracted_rows.append(extracted)
 
+    st.subheader("🧾 Extracted Invoice Data")
+    df = pd.DataFrame(extracted_rows)
+    st.dataframe(df)
+
+    if st.button("✅ Save All to Supabase"):
+        status_code, response = insert_batch_to_supabase(extracted_rows)
         if status_code == 201:
-            st.success("Invoice saved to Supabase ✅")
+            st.success(f"{len(extracted_rows)} invoices saved to Supabase ✅")
         else:
             st.error(f"Failed to insert: {response}")
