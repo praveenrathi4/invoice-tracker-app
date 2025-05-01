@@ -17,23 +17,39 @@ def format_date(date_str, formats=["%d/%m/%Y", "%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y
 # ---------------------- Sample Extractor: Sourdough ----------------------
 
 def extract_sourdough_invoice(pdf_path, supplier_name, company_name):
+    import pdfplumber, re
+    from datetime import datetime
+
     with pdfplumber.open(pdf_path) as pdf:
         text = "\n".join(page.extract_text() for page in pdf.pages if page.extract_text())
 
-    invoice_no = re.search(r"Invoice\s+No[:\.]?\s*([A-Z0-9\-]+)", text)
-    invoice_date = re.search(r"Invoice\s+Date[:\.]?\s*([\d]{4}-[\d]{2}-[\d]{2})", text)
-    po_ref = re.search(r"PO\s+Ref[:\.]?\s*([A-Z0-9\-\/]+)", text)
-    delivery_date = re.search(r"Delivery\s+Date[:\.]?\s*([\d]{2}/[\d]{2}/[\d]{4})", text)
-    balance_due = re.search(r"Balance\s+Due[:\.]?\s*\$?([\d,]+\.\d{2})", text)
+    def find(pattern):
+        match = re.search(pattern, text, re.IGNORECASE)
+        return match.group(1).strip() if match else None
+
+    def to_ddmmyyyy(date_str):
+        try:
+            return datetime.strptime(date_str, "%Y-%m-%d").strftime("%d/%m/%Y")
+        except:
+            try:
+                return datetime.strptime(date_str, "%d/%m/%Y").strftime("%d/%m/%Y")
+            except:
+                return date_str
+
+    invoice_no = find(r"Invoice No[:\s]*([0-9]+)")
+    invoice_date = to_ddmmyyyy(find(r"Invoice Date[:\s]*([\d/-]+)"))
+    po_ref = find(r"Po Ref[:\s]*([A-Z0-9]+)")
+    delivery_date = to_ddmmyyyy(find(r"Delivery Date[:\s]*([\d/-]+)"))
+    amount = find(r"Balance Due[:\s]*\$?([\d,]+\.\d{2})")
 
     return {
-        "Supplier Name": supplier_name,
-        "Company Name": company_name,
-        "Invoice No": invoice_no.group(1).strip() if invoice_no else None,
-        "Invoice Date": invoice_date.group(1).strip() if invoice_date else None,
-        "Due Date": format_date(delivery_date.group(1)) if delivery_date else None,
-        "Amount": balance_due.group(1).replace(",", "") if balance_due else None,
-        "Reference": po_ref.group(1).strip() if po_ref else None
+        "supplier_name": supplier_name,
+        "company_name": company_name,
+        "invoice_no": invoice_no,
+        "invoice_date": invoice_date,
+        "due_date": delivery_date,
+        "amount": amount.replace(",", "") if amount else None,
+        "reference": po_ref
     }
 
 
