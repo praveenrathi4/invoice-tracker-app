@@ -1,37 +1,52 @@
+
 import streamlit as st
 import pdfplumber
 import requests
 import re
 import pandas as pd
 from datetime import datetime
-
-# 🛠️ Supabase Config (replace with your own values)
 import os
+from supplier_extractors import SUPPLIER_EXTRACTORS, get_best_supplier_match
 
+# Supabase Config
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_API_KEY = os.getenv("SUPABASE_API_KEY")
 TABLE_NAME = "invoices"
 
-# 📤 Extract basic invoice fields (generic fallback, replace with supplier logic)
-def extract_invoice_data_from_pdf(file):
+# Fetch dropdown values from Supabase
+def get_dropdown_values(column, table):
+    url = f"{SUPABASE_URL}/rest/v1/{table}?select={column}"
+    headers = {
+        "apikey": SUPABASE_API_KEY,
+        "Authorization": f"Bearer {SUPABASE_API_KEY}"
+    }
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return sorted(set(row[column] for row in response.json() if row[column]))
+    return []
+
+# Extract invoice using supplier-specific logic
+def extract_invoice_data_from_pdf(file, supplier_name, company_name):
     with pdfplumber.open(file) as pdf:
         text = "\n".join(page.extract_text() for page in pdf.pages if page.extract_text())
 
-    def find(pattern):
-        match = re.search(pattern, text, re.IGNORECASE)
-        return match.group(1).strip() if match else None
+    matched_supplier = get_best_supplier_match(text, SUPPLIER_EXTRACTORS)
+    if matched_supplier:
+        st.info(f"📌 Matched Supplier Extractor: {matched_supplier}")
+        return SUPPLIER_EXTRACTORS[matched_supplier](file, supplier_name, company_name)
 
+    st.warning("⚠️ No matching extractor found.")
     return {
-        "supplier_name": find(r"(?:Supplier|From)[:\s]*([A-Za-z0-9 ,.&\-]+)"),
-        "company_name": find(r"(?:Bill To|Company)[:\s]*([A-Za-z0-9 ,.&\-]+)"),
-        "invoice_no": find(r"Invoice\s+(?:No|Number)[:\s]*([A-Z0-9\-\/]+)"),
-        "invoice_date": find(r"Invoice\s+Date[:\s]*([\d]{1,2}\s\w+\s\d{4})"),
-        "due_date": find(r"Due\s+Date[:\s]*([\d]{1,2}\s\w+\s\d{4})"),
-        "amount": find(r"Amount\s+Due.*?([\d,]+\.\d{2})") or find(r"Invoice\s+Total.*?([\d,]+\.\d{2})"),
-        "reference": find(r"Reference[:\s]*([^\n]+)"),
+        "supplier_name": supplier_name,
+        "company_name": company_name,
+        "invoice_no": None,
+        "invoice_date": None,
+        "due_date": None,
+        "amount": None,
+        "reference": None
     }
 
-# 🔗 Supabase Insert
+# Insert record into Supabase
 def insert_invoice_to_supabase(data):
     url = f"{SUPABASE_URL}/rest/v1/{TABLE_NAME}"
     headers = {
@@ -43,14 +58,21 @@ def insert_invoice_to_supabase(data):
     response = requests.post(url, json=[data], headers=headers)
     return response.status_code, response.json()
 
-# 🎯 UI Starts Here
+# Streamlit UI
 st.set_page_config(page_title="Invoice Uploader", layout="centered")
 st.title("📄 Invoice Uploader & Tracker")
+
+# Dropdowns for Supplier and Company
+supplier_options = get_dropdown_values("name", "supplier_names")
+company_options = get_dropdown_values("name", "company_names")
+
+supplier_name = st.selectbox("Select Supplier Name", supplier_options)
+company_name = st.selectbox("Select Company Name", company_options)
 
 uploaded_file = st.file_uploader("Upload Invoice PDF", type=["pdf"])
 
 if uploaded_file:
-    extracted = extract_invoice_data_from_pdf(uploaded_file)
+    extracted = extract_invoice_data_from_pdf(uploaded_file, supplier_name, company_name)
 
     # Format dates
     for key in ["invoice_date", "due_date"]:
@@ -64,8 +86,12 @@ if uploaded_file:
     st.json(extracted)
 
     if st.button("✅ Save to Supabase"):
-        # Prepare for DB
-        extracted["amount"] = float(extracted["amount"].replace(",", "")) if extracted["amount"] else None
+        try:
+            extracted["amount"] = float(extracted["amount"].replace(",", "")) if extracted["amount"] else None
+        except:
+            st.error("Amount format is invalid.")
+            extracted["amount"] = None
+
         extracted["status"] = "Unpaid"
         status_code, response = insert_invoice_to_supabase(extracted)
 
