@@ -79,7 +79,7 @@ if uploaded_files:
         # Format dates
         for key in ["invoice_date", "due_date"]:
             try:
-                if extracted[key]:
+                if extracted.get(key):
                     extracted[key] = datetime.strptime(extracted[key], "%d %b %Y").strftime("%d/%m/%Y")
             except:
                 pass
@@ -101,8 +101,12 @@ if uploaded_files:
         extracted["status"] = "Unpaid"
         extracted_rows.append(extracted)
 
-    # Filter valid rows
-    valid_rows = [row for row in extracted_rows if row["invoice_no"] and row["invoice_date"] and row["amount"] is not None]
+    # Validation
+    required_fields = ["invoice_no", "invoice_date", "amount"]
+    valid_rows = [
+        row for row in extracted_rows
+        if all(k in row and row[k] not in [None, ""] for k in required_fields)
+    ]
     invalid_rows = [row for row in extracted_rows if row not in valid_rows]
 
     st.subheader("🧾 Valid Extracted Invoice Data")
