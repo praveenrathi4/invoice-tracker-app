@@ -69,6 +69,10 @@ company_options = get_dropdown_values("name", "company_names")
 supplier_name = st.selectbox("Select Supplier Name", supplier_options)
 company_name = st.selectbox("Select Company Name", company_options)
 
+st.write("Suppliers found:", supplier_options)
+st.write("Companies found:", company_options)
+
+
 uploaded_file = st.file_uploader("Upload Invoice PDF", type=["pdf"])
 
 if uploaded_file:
