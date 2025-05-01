@@ -6,8 +6,10 @@ import pandas as pd
 from datetime import datetime
 
 # 🛠️ Supabase Config (replace with your own values)
-SUPABASE_URL = "https://tbfpimhofqkdrqglmbrs.supabase.co"
-SUPABASE_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRiZnBpbWhvZnFrZHJxZ2xtYnJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYxMDg0MTcsImV4cCI6MjA2MTY4NDQxN30.2jREDPxTp7UlMgYOXFCImXWsyesk4wS3tiphK7mXKi0"
+import os
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_API_KEY = os.getenv("SUPABASE_API_KEY")
 TABLE_NAME = "invoices"
 
 # 📤 Extract basic invoice fields (generic fallback, replace with supplier logic)
