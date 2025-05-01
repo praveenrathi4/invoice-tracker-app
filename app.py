@@ -84,22 +84,42 @@ if uploaded_files:
             except:
                 pass
 
-        try:
-            extracted["amount"] = float(extracted["amount"].replace(",", "")) if extracted["amount"] else None
-        except:
-            st.warning(f"Invalid amount format in file: {file.name}")
+        # Parse amount safely
+        raw_amount = extracted.get("amount")
+        if isinstance(raw_amount, str):
+            try:
+                raw_amount = raw_amount.replace(",", "")
+                extracted["amount"] = float(raw_amount)
+            except:
+                st.warning(f"Invalid amount in file: {file.name}")
+                extracted["amount"] = None
+        elif isinstance(raw_amount, (int, float)):
+            extracted["amount"] = float(raw_amount)
+        else:
             extracted["amount"] = None
 
         extracted["status"] = "Unpaid"
         extracted_rows.append(extracted)
 
-    st.subheader("🧾 Extracted Invoice Data")
-    df = pd.DataFrame(extracted_rows)
-    st.dataframe(df)
+    # Filter valid rows
+    valid_rows = [row for row in extracted_rows if row["invoice_no"] and row["invoice_date"] and row["amount"] is not None]
+    invalid_rows = [row for row in extracted_rows if row not in valid_rows]
 
-    if st.button("✅ Save All to Supabase"):
-        status_code, response = insert_batch_to_supabase(extracted_rows)
+    st.subheader("🧾 Valid Extracted Invoice Data")
+    if valid_rows:
+        df_valid = pd.DataFrame(valid_rows)
+        st.dataframe(df_valid)
+    else:
+        st.info("No valid invoice data to show.")
+
+    if invalid_rows:
+        st.subheader("⚠️ Skipped Invalid Invoices")
+        df_invalid = pd.DataFrame(invalid_rows)
+        st.dataframe(df_invalid)
+
+    if valid_rows and st.button("✅ Save Valid Invoices to Supabase"):
+        status_code, response = insert_batch_to_supabase(valid_rows)
         if status_code == 201:
-            st.success(f"{len(extracted_rows)} invoices saved to Supabase ✅")
+            st.success(f"{len(valid_rows)} invoices saved to Supabase ✅")
         else:
             st.error(f"Failed to insert: {response}")
