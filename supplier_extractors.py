@@ -1,4 +1,3 @@
-
 import pdfplumber
 import re
 from datetime import datetime
@@ -65,27 +64,27 @@ def extract_fu_luxe_invoice(pdf_path, supplier_name, company_name):
         return match.group(1).strip() if match else None
 
     def to_ddmmyyyy(date_str):
-        try:
-            return datetime.strptime(date_str, "%d %b %Y").strftime("%d/%m/%Y")
-        except:
-            return date_str
+        for fmt in ("%d %b %Y", "%Y-%m-%d", "%d/%m/%Y"):
+            try:
+                return datetime.strptime(date_str.strip(), fmt).strftime("%d/%m/%Y")
+            except:
+                continue
+        return date_str
 
-    invoice_no = find(r"Invoice Number[:\.]?\s*(INV-\d+)")
-    invoice_date = to_ddmmyyyy(find(r"Invoice Date[:\.]?\s*([\d]{1,2} \w{3} \d{4})"))
-    reference = find(r"Reference[:\.]?\s*(.*)")
-    due_date = to_ddmmyyyy(find(r"Due Date[:\.]?\s*([\d]{1,2} \w{3} \d{4})"))
-    amount = find(r"Amount Due SGD\s*([\d,]+\.\d{2})")
-    if not amount:
-        amount = find(r"Invoice Total SGD\s*([\d,]+\.\d{2})")
+    invoice_no = find(r"Invoice Number[:\s]*([A-Z0-9\-]+)")
+    invoice_date = to_ddmmyyyy(find(r"Invoice Date[:\s]*([\d]{1,2} \w{3} \d{4})"))
+    reference = find(r"Reference[:\s]*([^\n]+)")
+    due_date = to_ddmmyyyy(find(r"Due Date[:\s]*([\d]{1,2} \w{3} \d{4})"))
+    amount = find(r"Amount Due SGD[:\s]*([\d,]+\.\d{2})") or find(r"Invoice Total SGD[:\s]*([\d,]+\.\d{2})")
 
     return {
-        "Supplier Name": supplier_name,
-        "Company Name": company_name,
-        "Invoice No": invoice_no,
-        "Invoice Date": invoice_date,
-        "Due Date": due_date,
-        "Amount": amount.replace(",", "") if amount else None,
-        "Reference": reference
+        "supplier_name": supplier_name,
+        "company_name": company_name,
+        "invoice_no": invoice_no,
+        "invoice_date": invoice_date,
+        "due_date": due_date,
+        "amount": amount.replace(",", "") if amount else None,
+        "reference": reference
     }
 
 
