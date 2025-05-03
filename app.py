@@ -61,7 +61,7 @@ def insert_batch_to_supabase(data_list):
     return response.status_code, response.json()
 
 # Streamlit UI
-st.set_page_config(page_title="Invoice Uploader", layout="centered")
+st.set_page_config(page_title="Invoice/SOA Uploader", layout="centered")
 st.title("📄 Invoice/SOA Uploader & Tracker")
 
 # Toggle checkbox for Invoice vs SOA
@@ -82,32 +82,34 @@ if uploaded_files:
     else:
         extracted_rows = []
         for file in uploaded_files:
-            extracted = extract_invoice_data_from_pdf(file, supplier_name, company_name, is_invoice)
+            extracted_data = extract_invoice_data_from_pdf(file, supplier_name, company_name, is_invoice)
+            extracted_list = extracted_data if isinstance(extracted_data, list) else [extracted_data]
 
-            # Format dates
-            for key in ["invoice_date", "due_date"]:
-                try:
-                    if extracted.get(key):
-                        extracted[key] = datetime.strptime(extracted[key], "%d %b %Y").strftime("%d/%m/%Y")
-                except:
-                    pass
+            for extracted in extracted_list:
+                # Format dates
+                for key in ["invoice_date", "due_date"]:
+                    try:
+                        if extracted.get(key):
+                            extracted[key] = datetime.strptime(extracted[key], "%d %b %Y").strftime("%d/%m/%Y")
+                    except:
+                        pass
 
-            # Parse amount safely
-            raw_amount = extracted.get("amount")
-            if isinstance(raw_amount, str):
-                try:
-                    raw_amount = raw_amount.replace(",", "")
+                # Parse amount safely
+                raw_amount = extracted.get("amount")
+                if isinstance(raw_amount, str):
+                    try:
+                        raw_amount = raw_amount.replace(",", "")
+                        extracted["amount"] = float(raw_amount)
+                    except:
+                        st.warning(f"Invalid amount in file: {file.name}")
+                        extracted["amount"] = None
+                elif isinstance(raw_amount, (int, float)):
                     extracted["amount"] = float(raw_amount)
-                except:
-                    st.warning(f"Invalid amount in file: {file.name}")
+                else:
                     extracted["amount"] = None
-            elif isinstance(raw_amount, (int, float)):
-                extracted["amount"] = float(raw_amount)
-            else:
-                extracted["amount"] = None
 
-            extracted["status"] = "Unpaid"
-            extracted_rows.append(extracted)
+                extracted["status"] = "Unpaid"
+                extracted_rows.append(extracted)
 
         # Validation
         required_fields = ["invoice_no", "invoice_date", "amount"]
