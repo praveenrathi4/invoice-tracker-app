@@ -1,9 +1,9 @@
 credentials:
   usernames:
-    testuser@example.com:
-      email: testuser@example.com
-      name: Test User
-      password: "$2b$12$5vt2v1QVy2K/.yeHY66NL.X77DYbMJaT.UsdXcJHzPYcvZo.z/icu"  # password: test1234
+    praveen@tbhg.com:
+      email: praveen@tbhg.com
+      name: Praveen
+      password: "$2b$12$eWzjXAZb75GHkq8ZoMQ0JOzxBTPCiIt8T8AxZxnelb6yq1yM80Ydu"
 
 cookie:
   expiry_days: 1
@@ -12,4 +12,3 @@ cookie:
 
 preauthorized:
   emails:
-    - testuser@example.com
