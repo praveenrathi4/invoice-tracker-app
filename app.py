@@ -279,13 +279,6 @@ elif tab == "📁 Paid History":
                 key="paid_history_date_range"
             )
         
-            # ✅ Always-visible clear filters button
-            if st.button("🧹 Clear All Filters"):
-                st.session_state["supplier_filter"] = ""
-                st.session_state["company_filter"] = ""
-                st.session_state["paid_via_filter"] = ""
-                st.session_state["paid_history_date_range"] = []
-                st.experimental_rerun()
 
         # Step 4: Apply filters
         if supplier_filter:
