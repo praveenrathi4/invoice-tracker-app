@@ -6,3 +6,4 @@ openpyxl
 streamlit-authenticator==0.3.2
 bcrypt
 PyYAML
+extra-streamlit-components==0.1.57
