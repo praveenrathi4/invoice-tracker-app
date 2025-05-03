@@ -180,6 +180,7 @@ elif tab == "✅ Mark as Paid":
     else:
         df = pd.DataFrame(data)
 
+        # Apply filters
         col1, col2 = st.columns(2)
         supplier_filter = col1.text_input("🔍 Filter by Supplier")
         company_filter = col2.text_input("🏢 Filter by Company")
@@ -193,11 +194,18 @@ elif tab == "✅ Mark as Paid":
             df["invoice_date"] = pd.to_datetime(df["invoice_date"], errors="coerce")
             df = df[(df["invoice_date"] >= pd.to_datetime(date_range[0])) & (df["invoice_date"] <= pd.to_datetime(date_range[1]))]
 
-        df = df.drop(columns=["id"], errors="ignore")  # ✅ Drop once
-        edited = st.data_editor(df, use_container_width=True, num_rows="dynamic", key="mark_paid_editor")
+        # ✅ Add select column, drop id
+        df["select"] = False
+        df = df.drop(columns=["id"], errors="ignore")
 
-        # ✅ Use selected rows based on session state
-        selected = edited.loc[edited.index.isin(st.session_state["mark_paid_editor"]["edited_rows"].keys())]
+        # ✅ Show editor and sync Streamlit selection
+        edited = st.data_editor(df, use_container_width=True, num_rows="dynamic", key="mark_paid_editor")
+        selected_indexes = st.session_state["mark_paid_editor"]["edited_rows"].keys()
+        for idx in selected_indexes:
+            edited.at[idx, "select"] = True
+
+        # ✅ Filter selected rows using checkbox
+        selected = edited[edited["select"] == True]
 
         if not selected.empty:
             paid_date = st.date_input("🗓️ Enter Paid Date", value=date.today())
