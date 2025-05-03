@@ -196,7 +196,7 @@ elif tab == "✅ Mark as Paid":
 
         # ✅ Add select column, drop id
         df["select"] = False
-        df = df.drop(columns=["id"], errors="ignore")
+        df = df.drop(columns=["id", "status", "created_at", "paid_date", "paid_via", "remarks"], errors="ignore")
         cols = ["select"] + [col for col in df.columns if col != "select"]
         df = df[cols]
         editable_cols = ["select"]  # only allow checkbox interaction
