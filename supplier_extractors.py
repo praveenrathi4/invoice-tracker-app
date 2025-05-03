@@ -148,22 +148,22 @@ def extract_classic_fine_foods_soa(pdf_path, supplier_name, company_name):
 
     with pdfplumber.open(pdf_path) as pdf:
         for page in pdf.pages:
-            table = page.extract_table()
-            if not table:
-                continue
+            text = page.extract_text()
+            lines = text.split("\n") if text else []
 
-            # Skip header row
-            for row in table[1:]:
-                if len(row) < 6:
-                    continue
+            for line in lines:
+                # Expecting lines like: 05/04/2025 5321464 12/04/2025 202504041174 507.07
+                match = re.match(
+                    r"^\s*(\d{2}/\d{2}/\d{4})\s+(\d+)\s+(\d{2}/\d{2}/\d{4})\s+(\S+)\s+(\d{1,6}\.\d{2})\s*$",
+                    line
+                )
+                if match:
+                    due_date = to_ddmmyyyy(match.group(1))
+                    invoice_no = match.group(2)
+                    invoice_date = to_ddmmyyyy(match.group(3))
+                    reference = match.group(4)
+                    amount = match.group(5).replace(",", "")
 
-                due_date = to_ddmmyyyy(row[1])
-                invoice_no = row[2].strip() if row[2] else None
-                invoice_date = to_ddmmyyyy(row[3])
-                reference = row[4].strip() if row[4] else None
-                amount = row[5].replace(",", "").strip() if row[5] else None
-
-                if invoice_no and invoice_date and amount:
                     extracted_rows.append({
                         "supplier_name": supplier_name,
                         "company_name": company_name,
@@ -173,7 +173,6 @@ def extract_classic_fine_foods_soa(pdf_path, supplier_name, company_name):
                         "amount": amount,
                         "reference": reference
                     })
-    print("Extracted rows:", extracted_rows)
 
     return extracted_rows
 
