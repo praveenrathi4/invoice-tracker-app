@@ -84,10 +84,58 @@ st.set_page_config(page_title="Invoice Tracker", layout="wide")
 st.sidebar.title("🧭 Navigation")
 tab = st.sidebar.radio("Go to", ["📤 Upload Invoices", "📋 Outstanding Invoices", "✅ Mark as Paid", "📁 Paid History"])
 
-def filter_and_export(df):
-    if "id" in df.columns:
-        df = df.drop(columns=["id"])
+if tab == "📤 Upload Invoices":
+    st.title("📤 Upload Invoices or SOA")
 
+    is_invoice = st.checkbox("Processing Invoices", value=True)
+
+    supplier_options = [""] + get_dropdown_values("name", "supplier_names")
+    company_options = [""] + get_dropdown_values("name", "company_names")
+
+    supplier_name = st.selectbox("Select Supplier Name", supplier_options, index=0)
+    company_name = st.selectbox("Select Company Name", company_options, index=0)
+
+    uploaded_files = st.file_uploader("Upload PDF files", type=["pdf"], accept_multiple_files=True)
+
+    if uploaded_files:
+        if not supplier_name or not company_name:
+            st.warning("Please select both Supplier Name and Company Name before processing.")
+        else:
+            extracted_rows = []
+            for file in uploaded_files:
+                extracted_data = extract_invoice_data_from_pdf(file, supplier_name, company_name, is_invoice)
+                extracted_list = extracted_data if isinstance(extracted_data, list) else [extracted_data]
+
+                for row in extracted_list:
+                    for date_field in ["invoice_date", "due_date"]:
+                        try:
+                            if row.get(date_field):
+                                row[date_field] = datetime.strptime(row[date_field], "%d/%m/%Y").strftime("%Y-%m-%d")
+                        except:
+                            pass
+                    try:
+                        row["amount"] = float(str(row.get("amount", "0")).replace(",", ""))
+                    except:
+                        row["amount"] = None
+                    row["status"] = "Unpaid"
+                    extracted_rows.append(row)
+
+            required_fields = ["invoice_no", "invoice_date", "amount"]
+            valid_rows = [r for r in extracted_rows if all(r.get(f) not in [None, ""] for f in required_fields)]
+
+            st.subheader("🧾 Valid Extracted Invoices")
+            if valid_rows:
+                st.dataframe(pd.DataFrame(valid_rows))
+                if st.button("✅ Save to Supabase"):
+                    status_code, response = insert_batch_to_supabase(valid_rows)
+                    if status_code == 201:
+                        st.success("✅ Data saved to Supabase.")
+                    else:
+                        st.error("❌ Failed to insert records.")
+            else:
+                st.info("No valid invoice data to display.")
+
+def filter_and_export(df):
     col1, col2 = st.columns(2)
     supplier_filter = col1.text_input("🔍 Filter by Supplier")
     company_filter = col2.text_input("🏢 Filter by Company")
@@ -130,8 +178,6 @@ elif tab == "✅ Mark as Paid":
         st.info("✅ No unpaid invoices found.")
     else:
         df = pd.DataFrame(data)
-        if "id" in df.columns:
-            df = df.drop(columns=["id"])
 
         col1, col2 = st.columns(2)
         supplier_filter = col1.text_input("🔍 Filter by Supplier")
@@ -146,7 +192,9 @@ elif tab == "✅ Mark as Paid":
             df["invoice_date"] = pd.to_datetime(df["invoice_date"], errors="coerce")
             df = df[(df["invoice_date"] >= pd.to_datetime(date_range[0])) & (df["invoice_date"] <= pd.to_datetime(date_range[1]))]
 
-        selected = st.data_editor(df, use_container_width=True, num_rows="dynamic", disabled=["status"], key="mark_paid")
+        df["select"] = False
+        edited = st.data_editor(df, use_container_width=True, num_rows="dynamic")
+        selected = edited[edited["select"] == True]
 
         if not selected.empty:
             paid_date = st.date_input("🗓️ Enter Paid Date", value=date.today())
@@ -154,15 +202,10 @@ elif tab == "✅ Mark as Paid":
             paid_via = st.selectbox("💳 Select Payment Source", paid_sources, index=0)
             remark = st.text_area("📝 Remarks (Optional)")
 
-            if st.button("✅ Confirm Mark as Paid"):
-                if not paid_via:
-                    st.warning("Please select a 'Paid Via' source.")
-                elif not paid_date:
-                    st.warning("Please select a paid date.")
-                else:
-                    invoice_ids = selected["invoice_no"].tolist()
-                    update_invoice_paid_fields(invoice_ids, paid_date.isoformat(), paid_via, remark)
-                    st.success(f"✅ {len(invoice_ids)} invoice(s) marked as Paid.")
+            if paid_via and st.button("✅ Confirm Mark as Paid"):
+                invoice_ids = selected["invoice_no"].tolist()
+                update_invoice_paid_fields(invoice_ids, paid_date.isoformat(), paid_via, remark)
+                st.success(f"✅ {len(invoice_ids)} invoice(s) marked as Paid.")
 
 elif tab == "📁 Paid History":
     st.title("📁 Paid Invoice History")
@@ -171,11 +214,10 @@ elif tab == "📁 Paid History":
         st.info("No paid invoices found.")
     else:
         df = pd.DataFrame(data)
-        if "id" in df.columns:
-            df = df.drop(columns=["id"])
-        filtered_df = filter_and_export(df)
-        edited = st.data_editor(filtered_df, use_container_width=True, num_rows="dynamic", key="paid_history")
-        selected = edited[edited["invoice_no"].notna()]  # any selection
+        df["select"] = False
+        filter_and_export(df)
+        edited = st.data_editor(df, use_container_width=True, num_rows="dynamic")
+        selected = edited[edited["select"] == True]
         if not selected.empty and st.button("↩️ Mark Selected as Unpaid"):
             invoice_ids = selected["invoice_no"].tolist()
             update_invoice_paid_fields(invoice_ids, None, None, None, status="Unpaid")
