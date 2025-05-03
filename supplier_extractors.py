@@ -193,7 +193,7 @@ SUPPLIER_SOA_EXTRACTORS = {
 
 # ---------------------- Fuzzy Matching Function ----------------------
 
-def get_best_supplier_match(text, extractor_map, threshold=85):
+def get_best_supplier_match(text, extractor_map, threshold=70):
     best_score = 0
     best_supplier = None
     for supplier in extractor_map:
