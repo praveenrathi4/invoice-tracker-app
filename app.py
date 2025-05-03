@@ -195,7 +195,8 @@ elif tab == "✅ Mark as Paid":
             df = df[(df["invoice_date"] >= pd.to_datetime(date_range[0])) & (df["invoice_date"] <= pd.to_datetime(date_range[1]))]
 
         # ✅ Add select column, drop id
-        df["select"] = False
+        select_all = st.checkbox("🟢 Select All Filtered Rows", value=False)
+        df["select"] = select_all
         df = df.drop(columns=["id", "status", "created_at", "paid_date", "paid_via", "remarks"], errors="ignore")
         cols = ["select"] + [col for col in df.columns if col != "select"]
         df = df[cols]
