@@ -16,8 +16,6 @@ def format_date(date_str, formats=["%d/%m/%Y", "%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y
 # ---------------------- Sample Extractor: Sourdough ----------------------
 
 def extract_sourdough_invoice(pdf_path, supplier_name, company_name):
-    import pdfplumber, re
-    from datetime import datetime
 
     with pdfplumber.open(pdf_path) as pdf:
         text = "\n".join(page.extract_text() for page in pdf.pages if page.extract_text())
@@ -53,8 +51,6 @@ def extract_sourdough_invoice(pdf_path, supplier_name, company_name):
 
 
 def extract_fu_luxe_invoice(pdf_path, supplier_name, company_name):
-    import pdfplumber, re
-    from datetime import datetime
 
     with pdfplumber.open(pdf_path) as pdf:
         text = "\n".join(page.extract_text() for page in pdf.pages if page.extract_text())
@@ -89,8 +85,6 @@ def extract_fu_luxe_invoice(pdf_path, supplier_name, company_name):
 
 
 def extract_air_liquide_invoice(pdf_path, supplier_name, company_name):
-    import pdfplumber, re
-    from datetime import datetime
 
     with pdfplumber.open(pdf_path) as pdf:
         text = "\n".join(page.extract_text() for page in pdf.pages if page.extract_text())
@@ -132,9 +126,6 @@ def extract_air_liquide_invoice(pdf_path, supplier_name, company_name):
 
 
 def extract_classic_fine_foods_soa(pdf_path, supplier_name, company_name):
-    import pdfplumber
-    import re
-    from datetime import datetime
 
     def to_ddmmyyyy(date_str):
         for fmt in ("%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d"):
@@ -151,28 +142,33 @@ def extract_classic_fine_foods_soa(pdf_path, supplier_name, company_name):
             text = page.extract_text()
             lines = text.split("\n") if text else []
 
-            for line in lines:
-                # Expecting lines like: 05/04/2025 5321464 12/04/2025 202504041174 507.07
-                match = re.match(
-                    r"^\s*(\d{2}/\d{2}/\d{4})\s+(\d+)\s+(\d{2}/\d{2}/\d{4})\s+(\S+)\s+(\d{1,6}\.\d{2})\s*$",
-                    line
-                )
-                if match:
-                    due_date = to_ddmmyyyy(match.group(1))
-                    invoice_no = match.group(2)
-                    invoice_date = to_ddmmyyyy(match.group(3))
-                    reference = match.group(4)
-                    amount = match.group(5).replace(",", "")
+            buffer = []
+            for i, line in enumerate(lines):
+                # Accumulate lines in buffer
+                buffer.append(line.strip())
+                if len(buffer) >= 3:
+                    block = " ".join(buffer[-3:])
 
-                    extracted_rows.append({
-                        "supplier_name": supplier_name,
-                        "company_name": company_name,
-                        "invoice_no": invoice_no,
-                        "invoice_date": invoice_date,
-                        "due_date": due_date,
-                        "amount": amount,
-                        "reference": reference
-                    })
+                    match = re.search(
+                        r"(\d{1,6}\.\d{2})\s*(\d{2}/\d{2}/\d{4})\s+(\d+)\s+.*?(\d{2}/\d{2}/\d{4})\s+(\S+)",
+                        block
+                    )
+                    if match:
+                        amount = match.group(1)
+                        due_date = to_ddmmyyyy(match.group(2))
+                        invoice_no = match.group(3)
+                        invoice_date = to_ddmmyyyy(match.group(4))
+                        reference = match.group(5)
+
+                        extracted_rows.append({
+                            "supplier_name": supplier_name,
+                            "company_name": company_name,
+                            "invoice_no": invoice_no,
+                            "invoice_date": invoice_date,
+                            "due_date": due_date,
+                            "amount": amount.replace(",", ""),
+                            "reference": reference
+                        })
 
     return extracted_rows
 
