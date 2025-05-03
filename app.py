@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pdfplumber
 import requests
@@ -29,13 +28,22 @@ def get_dropdown_values(column, table):
         return sorted(set(row[column] for row in response.json() if row[column]))
     return []
 
-# Insert batch to Supabase
+# Insert batch to Supabase with error logging
 def insert_batch_to_supabase(data_list):
     url = f"{SUPABASE_URL}/rest/v1/{TABLE_NAME}"
     headers = supabase_headers()
     headers["Prefer"] = "return=representation"
-    response = requests.post(url, json=data_list, headers=headers)
-    return response.status_code, response.json()
+    try:
+        response = requests.post(url, json=data_list, headers=headers)
+        if response.status_code != 201:
+            st.error(f"❌ Supabase Error {response.status_code}:")
+            st.json(response.json())
+            st.warning("📦 Payload sent to Supabase:")
+            st.json(data_list)
+        return response.status_code, response.json()
+    except Exception as e:
+        st.error(f"🔴 Request failed: {str(e)}")
+        return 500, {"error": str(e)}
 
 # Extract invoice using matched extractor
 def extract_invoice_data_from_pdf(file, supplier_name, company_name, is_invoice=True):
