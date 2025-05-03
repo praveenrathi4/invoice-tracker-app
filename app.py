@@ -258,7 +258,7 @@ elif tab == "📁 Paid History":
                 "paid_via_filter": "",
                 "paid_history_date_range": []
             })
-            st.experimental_rerun()
+            st.rerun()
 
         
         with st.expander("🔍 Filter Options", expanded=True):
