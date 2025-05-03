@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pdfplumber
 import requests
@@ -112,6 +111,8 @@ if uploaded_files:
                 extracted_rows.append(extracted)
 
         # Validation
+        st.subheader("🔍 Raw Extracted Rows")
+        st.write(extracted_rows)
         required_fields = ["invoice_no", "invoice_date", "amount"]
         valid_rows = [
             row for row in extracted_rows
