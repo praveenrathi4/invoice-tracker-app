@@ -115,7 +115,7 @@ if tab == "📤 Upload Invoices":
                     for date_field in ["invoice_date", "due_date"]:
                         try:
                             if row.get(date_field):
-                                row[date_field] = datetime.strptime(row[date_field], "%d/%m/%Y").strftime("%d/%m/%Y")
+                                row[date_field] = datetime.strptime(row[date_field], "%d/%m/%Y").strftime("%Y-%m-%d")
                         except:
                             pass
                     try:
