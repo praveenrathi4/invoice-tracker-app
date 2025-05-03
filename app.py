@@ -165,6 +165,7 @@ if tab == "📋 Outstanding Invoices":
     data = get_invoices_by_status("Unpaid")
     if data:
         df = pd.DataFrame(data)
+        df = df.drop(columns=["id"], errors="ignore")
         df["amount"] = df["amount"].astype(float)
         filter_and_export(df)
     else:
@@ -178,6 +179,7 @@ elif tab == "✅ Mark as Paid":
         st.info("✅ No unpaid invoices found.")
     else:
         df = pd.DataFrame(data)
+        df = df.drop(columns=["id"], errors="ignore")
 
         col1, col2 = st.columns(2)
         supplier_filter = col1.text_input("🔍 Filter by Supplier")
@@ -192,21 +194,20 @@ elif tab == "✅ Mark as Paid":
             df["invoice_date"] = pd.to_datetime(df["invoice_date"], errors="coerce")
             df = df[(df["invoice_date"] >= pd.to_datetime(date_range[0])) & (df["invoice_date"] <= pd.to_datetime(date_range[1]))]
 
-        df["select"] = False
-        edited = st.data_editor(df, use_container_width=True, num_rows="dynamic")
-        selected = edited[edited["select"] == True]
+        edited = st.data_editor(df.drop(columns=["id"], errors="ignore"), use_container_width=True, num_rows="dynamic", key="mark_paid_editor")
+        selected = edited.loc[edited.index.isin(st.session_state["mark_paid_editor"]["edited_rows"].keys())]
 
         if not selected.empty:
             paid_date = st.date_input("🗓️ Enter Paid Date", value=date.today())
             paid_sources = [""] + get_dropdown_values("name", "paid_sources")
             paid_via = st.selectbox("💳 Select Payment Source", paid_sources, index=0)
             remark = st.text_area("📝 Remarks (Optional)")
-
+        
             if not paid_via:
                 st.warning("⚠️ Please select a valid payment source.")
             if not paid_date:
                 st.warning("⚠️ Please select a valid paid date.")
-
+        
             if paid_via and paid_date and st.button("✅ Confirm Mark as Paid"):
                 invoice_ids = selected["invoice_no"].tolist()
                 update_invoice_paid_fields(invoice_ids, paid_date.isoformat(), paid_via, remark)
