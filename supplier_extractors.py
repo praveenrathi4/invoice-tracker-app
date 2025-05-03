@@ -140,6 +140,10 @@ SUPPLIER_EXTRACTORS = {
     # Add more as needed
 }
 
+SUPPLIER_SOA_EXTRACTORS = {
+    # Add here SOA Extractors
+}
+
 # ---------------------- Fuzzy Matching Function ----------------------
 
 def get_best_supplier_match(text, extractor_map, threshold=85):
