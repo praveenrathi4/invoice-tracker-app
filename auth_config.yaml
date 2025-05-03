@@ -3,7 +3,7 @@ credentials:
     testuser@example.com:
       email: testuser@example.com
       name: Test User
-      password: "$2b$12$zvMv8.XUZ3Vm8Nz4lgqQJeHxi.lDmyYyQF0YBRhx5RhvxyjKSMmGy"  # password: test1234
+      password: "$2b$12$5vt2v1QVy2K/.yeHY66NL.X77DYbMJaT.UsdXcJHzPYcvZo.z/icu"  # password: test1234
 
 cookie:
   expiry_days: 1
