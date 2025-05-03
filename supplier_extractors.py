@@ -173,6 +173,7 @@ def extract_classic_fine_foods_soa(pdf_path, supplier_name, company_name):
                         "amount": amount,
                         "reference": reference
                     })
+    print("Extracted rows:", extracted_rows)
 
     return extracted_rows
 
