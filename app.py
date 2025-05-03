@@ -179,7 +179,6 @@ elif tab == "✅ Mark as Paid":
         st.info("✅ No unpaid invoices found.")
     else:
         df = pd.DataFrame(data)
-        df = df.drop(columns=["id"], errors="ignore")  # ✅ Drop once
 
         col1, col2 = st.columns(2)
         supplier_filter = col1.text_input("🔍 Filter by Supplier")
@@ -194,7 +193,7 @@ elif tab == "✅ Mark as Paid":
             df["invoice_date"] = pd.to_datetime(df["invoice_date"], errors="coerce")
             df = df[(df["invoice_date"] >= pd.to_datetime(date_range[0])) & (df["invoice_date"] <= pd.to_datetime(date_range[1]))]
 
-        # ✅ Use single editor without re-dropping id
+        df = df.drop(columns=["id"], errors="ignore")  # ✅ Drop once
         edited = st.data_editor(df, use_container_width=True, num_rows="dynamic", key="mark_paid_editor")
 
         # ✅ Use selected rows based on session state
