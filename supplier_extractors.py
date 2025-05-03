@@ -132,7 +132,8 @@ def extract_air_liquide_invoice(pdf_path, supplier_name, company_name):
 
 
 def extract_classic_fine_foods_soa(pdf_path, supplier_name, company_name):
-    import pdfplumber, re
+    import pdfplumber
+    import re
     from datetime import datetime
 
     def to_ddmmyyyy(date_str):
@@ -141,7 +142,7 @@ def extract_classic_fine_foods_soa(pdf_path, supplier_name, company_name):
                 return datetime.strptime(date_str.strip(), fmt).strftime("%d/%m/%Y")
             except:
                 continue
-        return date_str
+        return date_str.strip()
 
     extracted_rows = []
 
@@ -151,16 +152,16 @@ def extract_classic_fine_foods_soa(pdf_path, supplier_name, company_name):
             if not table:
                 continue
 
-            # Skip header row and process data
+            # Skip header row
             for row in table[1:]:
                 if len(row) < 6:
                     continue
 
-                amount = row[5]
                 due_date = to_ddmmyyyy(row[1])
-                invoice_no = row[2]
+                invoice_no = row[2].strip() if row[2] else None
                 invoice_date = to_ddmmyyyy(row[3])
-                reference = row[4]
+                reference = row[4].strip() if row[4] else None
+                amount = row[5].replace(",", "").strip() if row[5] else None
 
                 if invoice_no and invoice_date and amount:
                     extracted_rows.append({
@@ -169,7 +170,7 @@ def extract_classic_fine_foods_soa(pdf_path, supplier_name, company_name):
                         "invoice_no": invoice_no,
                         "invoice_date": invoice_date,
                         "due_date": due_date,
-                        "amount": amount.replace(",", "") if amount else None,
+                        "amount": amount,
                         "reference": reference
                     })
 
