@@ -125,24 +125,40 @@ if tab == "📤 Upload Invoices":
 
             if valid_rows:
                 # ✅ Step 1: Fetch existing invoice_no + invoice_date from Supabase
-                response = supabase.table("invoices").select("invoice_no", "invoice_date").execute()
-                existing_keys = {(item["invoice_no"], item["invoice_date"]) for item in response.data} if response.data else set()
-
-                # ✅ Step 2: Remove duplicates
+                response = requests.get(
+                    f"{SUPABASE_URL}/rest/v1/invoices?select=invoice_no,invoice_date",
+                    headers=supabase_headers()
+                )
+                existing_keys = set()
+                if response.status_code == 200:
+                    existing_data = response.json()
+                    existing_keys = {
+                        (item["invoice_no"], item["invoice_date"])
+                        for item in existing_data if item.get("invoice_no") and item.get("invoice_date")
+                    }
+                
+                # ✅ Step 2: Normalize and detect duplicates
                 df_all = pd.DataFrame(valid_rows)
                 df_all["invoice_date"] = pd.to_datetime(df_all["invoice_date"], errors="coerce").dt.strftime("%Y-%m-%d")
-                unique_df = df_all[~df_all.apply(lambda r: (r["invoice_no"], r["invoice_date"]) in existing_keys, axis=1)]
-                duplicates_df = df_all[df_all.index.difference(unique_df.index)]
-
+                
+                df_all["is_duplicate"] = df_all.apply(
+                    lambda r: (r["invoice_no"], r["invoice_date"]) in existing_keys, axis=1
+                )
+                
+                unique_df = df_all[~df_all["is_duplicate"]].drop(columns=["is_duplicate"])
+                duplicates_df = df_all[df_all["is_duplicate"]].drop(columns=["is_duplicate"])
+                
+                # ✅ Step 3: Show and Save
                 st.subheader("🧾 Valid Extracted Invoices (New Only)")
                 st.dataframe(unique_df)
-
+                
                 if not unique_df.empty and st.button("✅ Save to Supabase"):
                     status_code, response = insert_batch_to_supabase(unique_df.to_dict(orient="records"))
                     if status_code == 201:
                         st.success("✅ Data saved to Supabase.")
                         if not duplicates_df.empty:
-                            st.warning(f"⚠️ Skipped {len(duplicates_df)} duplicate invoice(s): {', '.join(duplicates_df['invoice_no'].astype(str))}")
+                            dup_invoices = ", ".join(duplicates_df['invoice_no'].astype(str).unique())
+                            st.warning(f"⚠️ Skipped {len(duplicates_df)} duplicate invoice(s): {dup_invoices}")
                     else:
                         st.error("❌ Failed to insert records.")
                 elif unique_df.empty:
