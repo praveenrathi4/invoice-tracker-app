@@ -110,15 +110,14 @@ def extract_air_liquide_invoice(pdf_path, supplier_name, company_name):
     # Match invoice no from 'DOC NO SV01961254'
     invoice_no = find(r"DOC NO\s+([A-Z0-9]+)")
 
-    # Match date above 'DAILY' or first date in header
-    invoice_date = find(r"(\d{2}/\d{2}/\d{4})\s+DAILY")
-    invoice_date = to_ddmmyyyy(invoice_date)
+    # Match 'Date 30/04/2025' pattern for invoice date
+    invoice_date = to_ddmmyyyy(find(r"Date\s+(\d{2}/\d{2}/\d{4})"))
 
-    # Match due date
-    due_date = to_ddmmyyyy(find(r"DUE DATE\s+(\d{2}/\d{2}/\d{4})"))
+    # Match due date (optional)
+    due_date = to_ddmmyyyy(find(r"Due Date\s+(\d{2}/\d{2}/\d{4})"))
 
-    # Extract amount from final TOTAL value
-    amounts = re.findall(r"\b(\d{2,3}\.\d{2})\b", text)
+    # Extract final numeric value after TOTAL (last amount in page)
+    amounts = re.findall(r"\b(\d{2,4}\.\d{2})\b", text)
     amount = amounts[-1] if amounts else None
 
     return {
@@ -130,7 +129,6 @@ def extract_air_liquide_invoice(pdf_path, supplier_name, company_name):
         "amount": amount,
         "reference": None
     }
-
 
 
 # ---------------------- Extractor Mapping ----------------------
