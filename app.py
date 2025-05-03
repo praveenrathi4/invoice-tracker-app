@@ -251,6 +251,16 @@ elif tab == "📁 Paid History":
             st.session_state["paid_history_date_range"] = []
 
         # Step 2: Filters
+        if st.button("🧹 Clear All Filters"):
+            st.session_state.update({
+                "supplier_filter": "",
+                "company_filter": "",
+                "paid_via_filter": "",
+                "paid_history_date_range": []
+            })
+            st.experimental_rerun()
+
+        
         with st.expander("🔍 Filter Options", expanded=True):
             col1, col2 = st.columns(2)
             supplier_filter = col1.text_input("🔍 Filter by Supplier", st.session_state.get("supplier_filter", ""), key="supplier_filter")
