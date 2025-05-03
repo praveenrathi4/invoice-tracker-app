@@ -180,29 +180,43 @@ elif tab == "✅ Mark as Paid":
     else:
         df = pd.DataFrame(data)
 
-        # Apply filters
-        col1, col2 = st.columns(2)
-        supplier_filter = col1.text_input("🔍 Filter by Supplier")
-        company_filter = col2.text_input("🏢 Filter by Company")
-        date_range = st.date_input("📅 Filter by Invoice Date Range", [])
+        # ✅ Clear all filters logic BEFORE widget instantiation
+        if st.button("🧹 Clear All Filters"):
+            st.session_state.update({
+                "mark_supplier_filter": "",
+                "mark_company_filter": "",
+                "mark_date_range": []
+            })
+            st.rerun()
 
+        # ✅ Filter section
+        with st.expander("🔍 Filter Options", expanded=True):
+            col1, col2 = st.columns(2)
+            supplier_filter = col1.text_input("🔍 Filter by Supplier", key="mark_supplier_filter")
+            company_filter = col2.text_input("🏢 Filter by Company", key="mark_company_filter")
+            date_range = st.date_input("📅 Filter by Invoice Date Range", key="mark_date_range")
+
+        # ✅ Apply filters
         if supplier_filter:
             df = df[df["supplier_name"].str.contains(supplier_filter, case=False, na=False)]
         if company_filter:
             df = df[df["company_name"].str.contains(company_filter, case=False, na=False)]
         if len(date_range) == 2:
             df["invoice_date"] = pd.to_datetime(df["invoice_date"], errors="coerce")
-            df = df[(df["invoice_date"] >= pd.to_datetime(date_range[0])) & (df["invoice_date"] <= pd.to_datetime(date_range[1]))]
+            df = df[
+                (df["invoice_date"] >= pd.to_datetime(date_range[0])) &
+                (df["invoice_date"] <= pd.to_datetime(date_range[1]))
+            ]
 
-        # ✅ Add select column, drop id
+        # ✅ Add select column, drop unused columns, reorder
         select_all = st.checkbox("🟢 Select All Filtered Rows", value=False, key="select_all_mark_paid")
         df["select"] = select_all
         df = df.drop(columns=["id", "status", "created_at", "paid_date", "paid_via", "remarks"], errors="ignore")
         cols = ["select"] + [col for col in df.columns if col != "select"]
         df = df[cols]
-        editable_cols = ["select"]  # only allow checkbox interaction
+        editable_cols = ["select"]
 
-        # ✅ Show editor and sync Streamlit selection
+        # ✅ Show table
         edited = st.data_editor(
             df,
             use_container_width=True,
@@ -210,11 +224,12 @@ elif tab == "✅ Mark as Paid":
             key="mark_paid_editor",
             hide_index=True,
             column_order=cols,
-            disabled=[col for col in df.columns if col not in editable_cols]  # ✅ disable others
+            disabled=[col for col in df.columns if col not in editable_cols]
         )
-                
+
         selected = edited[edited["select"] == True]
 
+        # ✅ Paid form + validation
         if not selected.empty:
             paid_date = st.date_input("🗓️ Enter Paid Date", value=date.today())
             paid_sources = [""] + get_dropdown_values("name", "paid_sources")
@@ -230,6 +245,8 @@ elif tab == "✅ Mark as Paid":
                 invoice_ids = selected["invoice_no"].tolist()
                 update_invoice_paid_fields(invoice_ids, paid_date.isoformat(), paid_via, remark)
                 st.success(f"✅ {len(invoice_ids)} invoice(s) marked as Paid.")
+
+
 
 elif tab == "📁 Paid History":
     st.title("📁 Paid Invoice History")
