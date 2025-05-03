@@ -1,15 +1,15 @@
 credentials:
   usernames:
-    youruser@example.com:
-      email: youruser@example.com
-      name: Your Name
-      password: "$2b$12$abcdehashedpassword1234"
+    testuser@example.com:
+      email: testuser@example.com
+      name: Test User
+      password: "$2b$12$zvMv8.XUZ3Vm8Nz4lgqQJeHxi.lDmyYyQF0YBRhx5RhvxyjKSMmGy"  # password: test1234
 
 cookie:
   expiry_days: 1
-  key: some_signature_key
-  name: streamlit_auth
+  key: secret_signature_key
+  name: invoice_auth
 
 preauthorized:
   emails:
-    - youruser@example.com
+    - testuser@example.com
