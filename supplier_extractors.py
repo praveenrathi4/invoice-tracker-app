@@ -107,10 +107,19 @@ def extract_air_liquide_invoice(pdf_path, supplier_name, company_name):
                 continue
         return date_str
 
-    invoice_no = find(r"Tax Invoice No[:\s]*([A-Z0-9]+)")
-    invoice_date = to_ddmmyyyy(find(r"Invoice Date[:\s]*([\d]{1,2}/[\d]{1,2}/[\d]{4})"))
-    due_date = to_ddmmyyyy(find(r"Due Date[:\s]*([\d]{1,2}/[\d]{1,2}/[\d]{4})"))
-    amount = find(r"Total Amount Payable.*?SGD\s*([\d,]+\.\d{2})")
+    # Match invoice no from 'DOC NO SV01961254'
+    invoice_no = find(r"DOC NO\s+([A-Z0-9]+)")
+
+    # Match date above 'DAILY' or first date in header
+    invoice_date = find(r"(\d{2}/\d{2}/\d{4})\s+DAILY")
+    invoice_date = to_ddmmyyyy(invoice_date)
+
+    # Match due date
+    due_date = to_ddmmyyyy(find(r"DUE DATE\s+(\d{2}/\d{2}/\d{4})"))
+
+    # Extract amount from final TOTAL value
+    amounts = re.findall(r"\b(\d{2,3}\.\d{2})\b", text)
+    amount = amounts[-1] if amounts else None
 
     return {
         "supplier_name": supplier_name,
@@ -118,7 +127,7 @@ def extract_air_liquide_invoice(pdf_path, supplier_name, company_name):
         "invoice_no": invoice_no,
         "invoice_date": invoice_date,
         "due_date": due_date,
-        "amount": amount.replace(",", "") if amount else None,
+        "amount": amount,
         "reference": None
     }
 
