@@ -131,6 +131,51 @@ def extract_air_liquide_invoice(pdf_path, supplier_name, company_name):
     }
 
 
+def extract_classic_fine_foods_soa(pdf_path, supplier_name, company_name):
+    import pdfplumber, re
+    from datetime import datetime
+
+    def to_ddmmyyyy(date_str):
+        for fmt in ("%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d"):
+            try:
+                return datetime.strptime(date_str.strip(), fmt).strftime("%d/%m/%Y")
+            except:
+                continue
+        return date_str
+
+    extracted_rows = []
+
+    with pdfplumber.open(pdf_path) as pdf:
+        for page in pdf.pages:
+            table = page.extract_table()
+            if not table:
+                continue
+
+            # Skip header row and process data
+            for row in table[1:]:
+                if len(row) < 6:
+                    continue
+
+                amount = row[5]
+                due_date = to_ddmmyyyy(row[1])
+                invoice_no = row[2]
+                invoice_date = to_ddmmyyyy(row[3])
+                reference = row[4]
+
+                if invoice_no and invoice_date and amount:
+                    extracted_rows.append({
+                        "supplier_name": supplier_name,
+                        "company_name": company_name,
+                        "invoice_no": invoice_no,
+                        "invoice_date": invoice_date,
+                        "due_date": due_date,
+                        "amount": amount.replace(",", "") if amount else None,
+                        "reference": reference
+                    })
+
+    return extracted_rows
+
+
 # ---------------------- Extractor Mapping ----------------------
 
 SUPPLIER_EXTRACTORS = {
@@ -141,6 +186,7 @@ SUPPLIER_EXTRACTORS = {
 }
 
 SUPPLIER_SOA_EXTRACTORS = {
+    "Classic Fine Foods": extract_classic_fine_foods_soa,
     # Add here SOA Extractors
 }
 
