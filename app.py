@@ -194,7 +194,16 @@ elif tab == "✅ Mark as Paid":
             col1, col2 = st.columns(2)
             supplier_filter = col1.text_input("🔍 Filter by Supplier", key="mark_supplier_filter")
             company_filter = col2.text_input("🏢 Filter by Company", key="mark_company_filter")
-            date_range = st.date_input("📅 Filter by Invoice Date Range", key="mark_date_range")
+            
+            today = datetime.date.today()
+            default_range = st.session_state.get("mark_date_range", [today, today])
+            
+            date_range = st.date_input(
+                "📅 Filter by Invoice Date Range",
+                value=default_range,
+                key="mark_date_range"
+            )
+
 
         # ✅ Apply filters
         if supplier_filter:
