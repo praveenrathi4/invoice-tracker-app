@@ -83,6 +83,9 @@ if uploaded_files:
         for file in uploaded_files:
             extracted_data = extract_invoice_data_from_pdf(file, supplier_name, company_name, is_invoice)
             extracted_list = extracted_data if isinstance(extracted_data, list) else [extracted_data]
+            st.subheader("🔍 Raw Extracted Rows")
+            st.write(extracted_list)
+
 
             for extracted in extracted_list:
                 # Format dates
