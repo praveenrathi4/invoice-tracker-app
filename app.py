@@ -199,6 +199,7 @@ elif tab == "✅ Mark as Paid":
         df = df.drop(columns=["id"], errors="ignore")
         cols = ["select"] + [col for col in df.columns if col != "select"]
         df = df[cols]
+        editable_cols = ["select"]  # only allow checkbox interaction
 
         # ✅ Show editor and sync Streamlit selection
         edited = st.data_editor(
@@ -208,8 +209,7 @@ elif tab == "✅ Mark as Paid":
             key="mark_paid_editor",
             hide_index=True,
             column_order=cols,
-            disabled=True,
-            column_config={"select": {"disabled": False}}
+            disabled=[col for col in df.columns if col not in editable_cols]  # ✅ disable others
         )
                 
         selected = edited[edited["select"] == True]
