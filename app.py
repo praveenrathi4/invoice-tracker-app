@@ -123,15 +123,30 @@ if tab == "📤 Upload Invoices":
             required_fields = ["invoice_no", "invoice_date", "amount"]
             valid_rows = [r for r in extracted_rows if all(r.get(f) not in [None, ""] for f in required_fields)]
 
-            st.subheader("🧾 Valid Extracted Invoices")
             if valid_rows:
-                st.dataframe(pd.DataFrame(valid_rows))
-                if st.button("✅ Save to Supabase"):
-                    status_code, response = insert_batch_to_supabase(valid_rows)
+                # ✅ Step 1: Fetch existing invoice_no + invoice_date from Supabase
+                response = supabase.table("invoices").select("invoice_no", "invoice_date").execute()
+                existing_keys = {(item["invoice_no"], item["invoice_date"]) for item in response.data} if response.data else set()
+
+                # ✅ Step 2: Remove duplicates
+                df_all = pd.DataFrame(valid_rows)
+                df_all["invoice_date"] = pd.to_datetime(df_all["invoice_date"], errors="coerce").dt.strftime("%Y-%m-%d")
+                unique_df = df_all[~df_all.apply(lambda r: (r["invoice_no"], r["invoice_date"]) in existing_keys, axis=1)]
+                duplicates_df = df_all[df_all.index.difference(unique_df.index)]
+
+                st.subheader("🧾 Valid Extracted Invoices (New Only)")
+                st.dataframe(unique_df)
+
+                if not unique_df.empty and st.button("✅ Save to Supabase"):
+                    status_code, response = insert_batch_to_supabase(unique_df.to_dict(orient="records"))
                     if status_code == 201:
                         st.success("✅ Data saved to Supabase.")
+                        if not duplicates_df.empty:
+                            st.warning(f"⚠️ Skipped {len(duplicates_df)} duplicate invoice(s): {', '.join(duplicates_df['invoice_no'].astype(str))}")
                     else:
                         st.error("❌ Failed to insert records.")
+                elif unique_df.empty:
+                    st.info("📌 All uploaded invoices already exist. No new records to save.")
             else:
                 st.info("No valid invoice data to display.")
 
