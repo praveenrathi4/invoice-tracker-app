@@ -3,3 +3,6 @@ pdfplumber
 requests
 rapidfuzz
 openpyxl
+streamlit-authenticator==0.3.2
+bcrypt
+PyYAML
