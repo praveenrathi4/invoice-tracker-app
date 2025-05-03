@@ -129,17 +129,19 @@ def extract_air_liquide_invoice(pdf_path, supplier_name, company_name):
 SUPPLIER_EXTRACTORS = {
     "Sourdough Factory LLP": extract_sourdough_invoice,
     "Fu Luxe Pte. Ltd.": extract_fu_luxe_invoice,
-    "Air Liquide Singapore": extract_air_liquide_invoice,
+    "Air Liquide Singapore Pte Ltd": extract_air_liquide_invoice,
     # Add more as needed
 }
 
 # ---------------------- Fuzzy Matching Function ----------------------
 
 def get_best_supplier_match(text, extractor_map, threshold=85):
+    best_score = 0
+    best_supplier = None
     for supplier in extractor_map:
         score = fuzz.partial_ratio(supplier.lower(), text.lower())
-        if score >= threshold:
-            print(f"🔍 Matched '{supplier}' with score {score}")
-            return supplier
-    print("⚠️ No supplier matched.")
-    return None
+        print(f"🔍 Score {score} for supplier: {supplier}")
+        if score > best_score and score >= threshold:
+            best_score = score
+            best_supplier = supplier
+    return best_supplier
