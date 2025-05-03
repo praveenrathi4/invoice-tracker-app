@@ -1,5 +1,5 @@
 import streamlit as st
-st.set_page_config(page_title="Invoice App", layout="wide")
+st.set_page_config(page_title="Invoice Tracker", layout="wide")
 import streamlit_authenticator as stauth
 import yaml
 from yaml.loader import SafeLoader
@@ -110,7 +110,6 @@ elif authentication_status:
             requests.patch(patch_url, headers=headers, json=payload)
         return True
     
-    st.set_page_config(page_title="Invoice Tracker", layout="wide")
     st.sidebar.title("🧭 Navigation")
     tab = st.sidebar.radio("Go to", ["📤 Upload Invoices", "📋 Outstanding Invoices", "✅ Mark as Paid", "📁 Paid History"])
     
