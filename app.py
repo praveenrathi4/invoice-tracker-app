@@ -251,24 +251,31 @@ elif tab == "📁 Paid History":
             st.session_state["paid_history_date_range"] = []
 
         # Step 2: Filters
-        col1, col2 = st.columns(2)
-        supplier_filter = col1.text_input("🔍 Filter by Supplier", st.session_state["supplier_filter"], key="supplier_filter")
-        company_filter = col2.text_input("🏢 Filter by Company", st.session_state["company_filter"], key="company_filter")
-        paid_via_filter = st.selectbox(
-            "💳 Filter by Payment Source",
-            options=[""] + get_dropdown_values("name", "paid_sources"),
-            index=0,
-            key="paid_via_filter"
-        )
-        date_range = st.date_input("📅 Filter by Invoice Date Range", st.session_state["paid_history_date_range"], key="paid_history_date_range")
-
-        # Step 3: Clear Filters Button
-        if st.button("🧹 Clear All Filters"):
-            st.session_state["supplier_filter"] = ""
-            st.session_state["company_filter"] = ""
-            st.session_state["paid_via_filter"] = ""
-            st.session_state["paid_history_date_range"] = []
-            st.experimental_rerun()
+        with st.expander("🔍 Filter Options", expanded=True):
+            col1, col2 = st.columns(2)
+            supplier_filter = col1.text_input("🔍 Filter by Supplier", st.session_state.get("supplier_filter", ""), key="supplier_filter")
+            company_filter = col2.text_input("🏢 Filter by Company", st.session_state.get("company_filter", ""), key="company_filter")
+        
+            paid_via_filter = st.selectbox(
+                "💳 Filter by Payment Source",
+                options=[""] + get_dropdown_values("name", "paid_sources"),
+                index=0,
+                key="paid_via_filter"
+            )
+        
+            date_range = st.date_input(
+                "📅 Filter by Invoice Date Range",
+                st.session_state.get("paid_history_date_range", []),
+                key="paid_history_date_range"
+            )
+        
+            # ✅ Always-visible clear filters button
+            if st.button("🧹 Clear All Filters"):
+                st.session_state["supplier_filter"] = ""
+                st.session_state["company_filter"] = ""
+                st.session_state["paid_via_filter"] = ""
+                st.session_state["paid_history_date_range"] = []
+                st.experimental_rerun()
 
         # Step 4: Apply filters
         if supplier_filter:
