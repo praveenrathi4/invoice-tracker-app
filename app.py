@@ -201,12 +201,13 @@ elif tab == "✅ Mark as Paid":
             df = df[df["supplier_name"].str.contains(supplier_filter, case=False, na=False)]
         if company_filter:
             df = df[df["company_name"].str.contains(company_filter, case=False, na=False)]
-        if len(date_range) == 2:
+        if isinstance(date_range, list) and len(date_range) == 2:
             df["invoice_date"] = pd.to_datetime(df["invoice_date"], errors="coerce")
             df = df[
                 (df["invoice_date"] >= pd.to_datetime(date_range[0])) &
                 (df["invoice_date"] <= pd.to_datetime(date_range[1]))
             ]
+
 
         # ✅ Add select column, drop unused columns, reorder
         select_all = st.checkbox("🟢 Select All Filtered Rows", value=False, key="select_all_mark_paid")
