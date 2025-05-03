@@ -211,11 +211,15 @@ elif tab == "✅ Mark as Paid":
         if company_filter:
             df = df[df["company_name"].str.contains(company_filter, case=False, na=False)]
         if isinstance(date_range, list) and len(date_range) == 2:
+            # Convert column to datetime
             df["invoice_date"] = pd.to_datetime(df["invoice_date"], errors="coerce")
+            
+            # Convert to .dt.date to match st.date_input format
             df = df[
-                (df["invoice_date"] >= pd.to_datetime(date_range[0])) &
-                (df["invoice_date"] <= pd.to_datetime(date_range[1]))
+                (df["invoice_date"].dt.date >= date_range[0]) &
+                (df["invoice_date"].dt.date <= date_range[1])
             ]
+
 
 
         # ✅ Add select column, drop unused columns, reorder
