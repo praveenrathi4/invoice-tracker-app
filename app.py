@@ -195,7 +195,7 @@ elif tab == "✅ Mark as Paid":
             supplier_filter = col1.text_input("🔍 Filter by Supplier", key="mark_supplier_filter")
             company_filter = col2.text_input("🏢 Filter by Company", key="mark_company_filter")
             
-            today = datetime.date.today()
+            today = date.today()
             default_range = st.session_state.get("mark_date_range", [today, today])
             
             date_range = st.date_input(
