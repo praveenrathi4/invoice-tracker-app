@@ -233,15 +233,75 @@ elif tab == "✅ Mark as Paid":
 
 elif tab == "📁 Paid History":
     st.title("📁 Paid Invoice History")
+
     data = get_invoices_by_status("Paid")
     if not data:
         st.info("No paid invoices found.")
     else:
         df = pd.DataFrame(data)
-        df["select"] = False
-        filter_and_export(df)
-        edited = st.data_editor(df, use_container_width=True, num_rows="dynamic")
+
+        # Step 1: Filter options
+        col1, col2 = st.columns(2)
+        supplier_filter = col1.text_input("🔍 Filter by Supplier")
+        company_filter = col2.text_input("🏢 Filter by Company")
+        paid_via_filter = st.selectbox(
+            "💳 Filter by Payment Source",
+            options=[""] + get_dropdown_values("name", "paid_sources"),
+            index=0
+        )
+        date_range = st.date_input("📅 Filter by Invoice Date Range", [])
+
+        if supplier_filter:
+            df = df[df["supplier_name"].str.contains(supplier_filter, case=False, na=False)]
+        if company_filter:
+            df = df[df["company_name"].str.contains(company_filter, case=False, na=False)]
+        if paid_via_filter:
+            df = df[df["paid_via"].str.contains(paid_via_filter, case=False, na=False)]
+        if len(date_range) == 2:
+            df["invoice_date"] = pd.to_datetime(df["invoice_date"], errors="coerce")
+            df = df[
+                (df["invoice_date"] >= pd.to_datetime(date_range[0])) &
+                (df["invoice_date"] <= pd.to_datetime(date_range[1]))
+            ]
+
+        # Step 2: Select All checkbox
+        select_all = st.checkbox("🟢 Select All Filtered Rows", value=False)
+        df["select"] = select_all
+
+        # Step 3: Drop irrelevant columns
+        df = df.drop(columns=["id", "status", "created_at"], errors="ignore")
+
+        # Step 4: Reorder columns
+        cols = ["select"] + [col for col in df.columns if col != "select"]
+        df = df[cols]
+
+        # Step 5: Disable all columns except 'select'
+        editable_cols = ["select"]
+        edited = st.data_editor(
+            df,
+            use_container_width=True,
+            num_rows="dynamic",
+            key="paid_history_editor",
+            hide_index=True,
+            column_order=cols,
+            disabled=[col for col in df.columns if col not in editable_cols]
+        )
+
+        # Step 6: Extract selected
         selected = edited[edited["select"] == True]
+
+        # Step 7: Export all filtered rows (not just selected)
+        export_df = edited.drop(columns=["select"], errors="ignore")
+        excel = BytesIO()
+        export_df.to_excel(excel, index=False)
+        st.download_button(
+            label="📤 Download Filtered Invoices (Excel)",
+            data=excel.getvalue(),
+            file_name="paid_invoices.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+        # Step 8: Allow user to mark selected invoices as Unpaid
         if not selected.empty and st.button("↩️ Mark Selected as Unpaid"):
             invoice_ids = selected["invoice_no"].tolist()
             update_invoice_paid_fields(invoice_ids, None, None, None, status="Unpaid")
