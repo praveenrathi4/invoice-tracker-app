@@ -126,6 +126,9 @@ def extract_air_liquide_invoice(pdf_path, supplier_name, company_name):
 
 
 def extract_classic_fine_foods_soa(pdf_path, supplier_name, company_name):
+    import pdfplumber
+    import pandas as pd
+    from datetime import datetime
 
     def to_ddmmyyyy(date_str):
         for fmt in ("%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d"):
@@ -142,33 +145,34 @@ def extract_classic_fine_foods_soa(pdf_path, supplier_name, company_name):
             text = page.extract_text()
             lines = text.split("\n") if text else []
 
-            buffer = []
-            for i, line in enumerate(lines):
-                # Accumulate lines in buffer
-                buffer.append(line.strip())
-                if len(buffer) >= 3:
-                    block = " ".join(buffer[-3:])
+            for line in lines:
+                if any(char.isdigit() for char in line) and '/' in line:
+                    parts = line.split()
+                    if len(parts) >= 6:
+                        try:
+                            invoice_date = to_ddmmyyyy(parts[0])   # Was "credit"
+                            invoice_no = parts[1]                  # Was "due_date"
+                            reference = parts[2]                   # Was "doc_no"
+                            # description = " ".join(parts[3:-3])  # optional
+                            due_date = to_ddmmyyyy(parts[-3])      # Was "date"
+                            amount = parts[-2].replace(",", "")    # Was "balance"
+                            # doc_ref = parts[-1]                  # extra field
 
-                    match = re.search(
-                        r"(\d{1,6}\.\d{2})\s*(\d{2}/\d{2}/\d{4})\s+(\d+)\s+.*?(\d{2}/\d{2}/\d{4})\s+(\S+)",
-                        block
-                    )
-                    if match:
-                        amount = match.group(1)
-                        due_date = to_ddmmyyyy(match.group(2))
-                        invoice_no = match.group(3)
-                        invoice_date = to_ddmmyyyy(match.group(4))
-                        reference = match.group(5)
+                            extracted_rows.append({
+                                "supplier_name": supplier_name,
+                                "company_name": company_name,
+                                "invoice_no": invoice_no,
+                                "invoice_date": invoice_date,
+                                "due_date": due_date,
+                                "amount": amount,
+                                "reference": reference
+                            })
+                        except:
+                            continue
 
-                        extracted_rows.append({
-                            "supplier_name": supplier_name,
-                            "company_name": company_name,
-                            "invoice_no": invoice_no,
-                            "invoice_date": invoice_date,
-                            "due_date": due_date,
-                            "amount": amount.replace(",", ""),
-                            "reference": reference
-                        })
+    # Optionally remove last row (summary)
+    if extracted_rows:
+        extracted_rows.pop()
 
     return extracted_rows
 
