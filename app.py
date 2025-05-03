@@ -202,15 +202,15 @@ elif tab == "✅ Mark as Paid":
             paid_via = st.selectbox("💳 Select Payment Source", paid_sources, index=0)
             remark = st.text_area("📝 Remarks (Optional)")
 
-        if not paid_via:
-            st.warning("⚠️ Please select a valid payment source.")
-        if not paid_date:
-            st.warning("⚠️ Please select a valid paid date.")
+            if not paid_via:
+                st.warning("⚠️ Please select a valid payment source.")
+            if not paid_date:
+                st.warning("⚠️ Please select a valid paid date.")
 
-        if paid_via and paid_date and st.button("✅ Confirm Mark as Paid"):
-            invoice_ids = selected["invoice_no"].tolist()
-            update_invoice_paid_fields(invoice_ids, paid_date.isoformat(), paid_via, remark)
-            st.success(f"✅ {len(invoice_ids)} invoice(s) marked as Paid.")
+            if paid_via and paid_date and st.button("✅ Confirm Mark as Paid"):
+                invoice_ids = selected["invoice_no"].tolist()
+                update_invoice_paid_fields(invoice_ids, paid_date.isoformat(), paid_via, remark)
+                st.success(f"✅ {len(invoice_ids)} invoice(s) marked as Paid.")
 
 elif tab == "📁 Paid History":
     st.title("📁 Paid Invoice History")
