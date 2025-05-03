@@ -240,17 +240,37 @@ elif tab == "📁 Paid History":
     else:
         df = pd.DataFrame(data)
 
-        # Step 1: Filter options
+        # Step 1: Initialize filter state
+        if "supplier_filter" not in st.session_state:
+            st.session_state["supplier_filter"] = ""
+        if "company_filter" not in st.session_state:
+            st.session_state["company_filter"] = ""
+        if "paid_via_filter" not in st.session_state:
+            st.session_state["paid_via_filter"] = ""
+        if "paid_history_date_range" not in st.session_state:
+            st.session_state["paid_history_date_range"] = []
+
+        # Step 2: Filters
         col1, col2 = st.columns(2)
-        supplier_filter = col1.text_input("🔍 Filter by Supplier")
-        company_filter = col2.text_input("🏢 Filter by Company")
+        supplier_filter = col1.text_input("🔍 Filter by Supplier", st.session_state["supplier_filter"], key="supplier_filter")
+        company_filter = col2.text_input("🏢 Filter by Company", st.session_state["company_filter"], key="company_filter")
         paid_via_filter = st.selectbox(
             "💳 Filter by Payment Source",
             options=[""] + get_dropdown_values("name", "paid_sources"),
-            index=0
+            index=0,
+            key="paid_via_filter"
         )
-        date_range = st.date_input("📅 Filter by Invoice Date Range", [])
+        date_range = st.date_input("📅 Filter by Invoice Date Range", st.session_state["paid_history_date_range"], key="paid_history_date_range")
 
+        # Step 3: Clear Filters Button
+        if st.button("🧹 Clear All Filters"):
+            st.session_state["supplier_filter"] = ""
+            st.session_state["company_filter"] = ""
+            st.session_state["paid_via_filter"] = ""
+            st.session_state["paid_history_date_range"] = []
+            st.experimental_rerun()
+
+        # Step 4: Apply filters
         if supplier_filter:
             df = df[df["supplier_name"].str.contains(supplier_filter, case=False, na=False)]
         if company_filter:
@@ -264,18 +284,18 @@ elif tab == "📁 Paid History":
                 (df["invoice_date"] <= pd.to_datetime(date_range[1]))
             ]
 
-        # Step 2: Select All checkbox
+        # Step 5: Select All
         select_all = st.checkbox("🟢 Select All Filtered Rows", value=False, key="select_all_paid_history")
         df["select"] = select_all
 
-        # Step 3: Drop irrelevant columns
+        # Step 6: Drop irrelevant columns
         df = df.drop(columns=["id", "status", "created_at"], errors="ignore")
 
-        # Step 4: Reorder columns
+        # Step 7: Reorder columns
         cols = ["select"] + [col for col in df.columns if col != "select"]
         df = df[cols]
 
-        # Step 5: Disable all columns except 'select'
+        # Step 8: Show data editor
         editable_cols = ["select"]
         edited = st.data_editor(
             df,
@@ -287,10 +307,10 @@ elif tab == "📁 Paid History":
             disabled=[col for col in df.columns if col not in editable_cols]
         )
 
-        # Step 6: Extract selected
+        # Step 9: Get selected rows
         selected = edited[edited["select"] == True]
 
-        # Step 7: Export all filtered rows (not just selected)
+        # Step 10: Export all filtered rows
         export_df = edited.drop(columns=["select"], errors="ignore")
         excel = BytesIO()
         export_df.to_excel(excel, index=False)
@@ -301,7 +321,7 @@ elif tab == "📁 Paid History":
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
-        # Step 8: Allow user to mark selected invoices as Unpaid
+        # Step 11: Mark as Unpaid
         if not selected.empty and st.button("↩️ Mark Selected as Unpaid"):
             invoice_ids = selected["invoice_no"].tolist()
             update_invoice_paid_fields(invoice_ids, None, None, None, status="Unpaid")
