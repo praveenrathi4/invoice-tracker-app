@@ -315,16 +315,19 @@ elif tab == "📁 Paid History":
         if paid_via_filter:
             df = df[df["paid_via"].str.contains(paid_via_filter, case=False, na=False)]
         # ✅ Step 1: Filter if date range is selected
+        # Filter by date range
+        df["invoice_date"] = pd.to_datetime(df["invoice_date"], errors="coerce")
+        
         if len(date_range) == 2:
-            df["invoice_date"] = pd.to_datetime(df["invoice_date"], errors="coerce")
             df = df[
                 (df["invoice_date"] >= pd.to_datetime(date_range[0])) &
                 (df["invoice_date"] <= pd.to_datetime(date_range[1]))
             ]
         
-        # ✅ Step 2: Format invoice_date for clean display (dd-mm-yyyy)
-        if pd.api.types.is_datetime64_any_dtype(df["invoice_date"]):
-            df["invoice_date"] = df["invoice_date"].dt.strftime("%d-%m-%Y")
+        # Format invoice_date as dd-mm-yyyy string
+        df["invoice_date"] = df["invoice_date"].apply(
+            lambda x: x.strftime("%d-%m-%Y") if pd.notnull(x) else ""
+        )
 
 
         # Step 5: Select All
