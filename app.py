@@ -165,7 +165,7 @@ if tab == "📋 Outstanding Invoices":
     data = get_invoices_by_status("Unpaid")
     if data:
         df = pd.DataFrame(data)
-        df = df.drop(columns=["id"], errors="ignore")
+        df = df.drop(columns=["id", "status", "created_at", "paid_date", "paid_via", "remarks"], errors="ignore")
         df["amount"] = df["amount"].astype(float)
         filter_and_export(df)
     else:
