@@ -197,22 +197,19 @@ elif tab == "✅ Mark as Paid":
         # ✅ Add select column, drop id
         df["select"] = False
         df = df.drop(columns=["id"], errors="ignore")
+        cols = ["select"] + [col for col in df.columns if col != "select"]
+        df = df[cols]
 
         # ✅ Show editor and sync Streamlit selection
         edited = st.data_editor(
             df,
             use_container_width=True,
             num_rows="dynamic",
-            key="mark_paid_editor"
+            key="mark_paid_editor",
+            hide_index=True,
+            column_order=cols
         )
-        
-        # ✅ Sync native selection to 'select' column
-        selected_rows = st.session_state["mark_paid_editor"]["edited_rows"].keys()
-        for row_index in selected_rows:
-            if "select" in edited.columns:
-                edited.at[row_index, "select"] = True
-        
-        # ✅ Filter selected rows as usual
+                
         selected = edited[edited["select"] == True]
 
         if not selected.empty:
