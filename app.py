@@ -6,7 +6,7 @@ import re
 import pandas as pd
 from datetime import datetime
 import os
-from supplier_extractors import SUPPLIER_EXTRACTORS, get_best_supplier_match
+from supplier_extractors import SUPPLIER_EXTRACTORS, SUPPLIER_SOA_EXTRACTORS, get_best_supplier_match
 
 # Supabase Config
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -26,14 +26,16 @@ def get_dropdown_values(column, table):
     return []
 
 # Extract invoice using supplier-specific logic
-def extract_invoice_data_from_pdf(file, supplier_name, company_name):
+def extract_invoice_data_from_pdf(file, supplier_name, company_name, is_invoice=True):
     with pdfplumber.open(file) as pdf:
         text = "\n".join(page.extract_text() for page in pdf.pages if page.extract_text())
 
-    matched_supplier = get_best_supplier_match(text, SUPPLIER_EXTRACTORS)
+    extractor_map = SUPPLIER_EXTRACTORS if is_invoice else SUPPLIER_SOA_EXTRACTORS
+    matched_supplier = get_best_supplier_match(text, extractor_map)
+
     if matched_supplier:
-        st.info(f"📌 Matched Supplier Extractor: {matched_supplier}")
-        return SUPPLIER_EXTRACTORS[matched_supplier](file, supplier_name, company_name)
+        st.info(f"📌 Matched Supplier Extractor: {matched_supplier} ({'Invoice' if is_invoice else 'SOA'})")
+        return extractor_map[matched_supplier](file, supplier_name, company_name)
 
     st.warning("⚠️ No matching extractor found.")
     return {
@@ -60,16 +62,19 @@ def insert_batch_to_supabase(data_list):
 
 # Streamlit UI
 st.set_page_config(page_title="Invoice Uploader", layout="centered")
-st.title("📄 Invoice Uploader & Tracker")
+st.title("📄 Invoice/SOA Uploader & Tracker")
 
-# Dropdowns for Supplier and Company with placeholder
+# Toggle checkbox for Invoice vs SOA
+is_invoice = st.checkbox("Processing Invoices", value=True)
+
+# Dropdowns for Supplier and Company with blank default
 supplier_options = [""] + get_dropdown_values("name", "supplier_names")
 company_options = [""] + get_dropdown_values("name", "company_names")
 
 supplier_name = st.selectbox("Select Supplier Name", supplier_options, index=0)
 company_name = st.selectbox("Select Company Name", company_options, index=0)
 
-uploaded_files = st.file_uploader("Upload One or More Invoice PDFs", type=["pdf"], accept_multiple_files=True)
+uploaded_files = st.file_uploader("Upload One or More PDF Files", type=["pdf"], accept_multiple_files=True)
 
 if uploaded_files:
     if not supplier_name or not company_name:
@@ -77,7 +82,7 @@ if uploaded_files:
     else:
         extracted_rows = []
         for file in uploaded_files:
-            extracted = extract_invoice_data_from_pdf(file, supplier_name, company_name)
+            extracted = extract_invoice_data_from_pdf(file, supplier_name, company_name, is_invoice)
 
             # Format dates
             for key in ["invoice_date", "due_date"]:
@@ -112,21 +117,21 @@ if uploaded_files:
         ]
         invalid_rows = [row for row in extracted_rows if row not in valid_rows]
 
-        st.subheader("🧾 Valid Extracted Invoice Data")
+        st.subheader("🧾 Valid Extracted Data")
         if valid_rows:
             df_valid = pd.DataFrame(valid_rows)
             st.dataframe(df_valid)
         else:
-            st.info("No valid invoice data to show.")
+            st.info("No valid data to show.")
 
         if invalid_rows:
-            st.subheader("⚠️ Skipped Invalid Invoices")
+            st.subheader("⚠️ Skipped Invalid Entries")
             df_invalid = pd.DataFrame(invalid_rows)
             st.dataframe(df_invalid)
 
-        if valid_rows and st.button("✅ Save Valid Invoices to Supabase"):
+        if valid_rows and st.button("✅ Save Valid Records to Supabase"):
             status_code, response = insert_batch_to_supabase(valid_rows)
             if status_code == 201:
-                st.success(f"{len(valid_rows)} invoices saved to Supabase ✅")
+                st.success(f"{len(valid_rows)} record(s) saved to Supabase ✅")
             else:
                 st.error(f"Failed to insert: {response}")
