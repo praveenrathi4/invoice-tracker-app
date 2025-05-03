@@ -197,10 +197,10 @@ elif tab == "✅ Mark as Paid":
         selected = edited[edited["select"] == True]
 
         if not selected.empty:
-        paid_date = st.date_input("🗓️ Enter Paid Date", value=date.today())
-        paid_sources = [""] + get_dropdown_values("name", "paid_sources")
-        paid_via = st.selectbox("💳 Select Payment Source", paid_sources, index=0)
-        remark = st.text_area("📝 Remarks (Optional)")
+            paid_date = st.date_input("🗓️ Enter Paid Date", value=date.today())
+            paid_sources = [""] + get_dropdown_values("name", "paid_sources")
+            paid_via = st.selectbox("💳 Select Payment Source", paid_sources, index=0)
+            remark = st.text_area("📝 Remarks (Optional)")
 
         if not paid_via:
             st.warning("⚠️ Please select a valid payment source.")
