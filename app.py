@@ -180,7 +180,15 @@ elif tab == "✅ Mark as Paid":
     else:
         df = pd.DataFrame(data)
 
-        # ✅ Clear all filters logic BEFORE widget instantiation
+        # Step 1: Initialize filter state
+        if "mark_supplier_filter" not in st.session_state:
+            st.session_state["mark_supplier_filter"] = ""
+        if "mark_company_filter" not in st.session_state:
+            st.session_state["mark_company_filter"] = ""
+        if "mark_date_range" not in st.session_state:
+            st.session_state["mark_date_range"] = []
+
+        # Step 2: Clear All Filters
         if st.button("🧹 Clear All Filters"):
             st.session_state.update({
                 "mark_supplier_filter": "",
@@ -189,48 +197,34 @@ elif tab == "✅ Mark as Paid":
             })
             st.rerun()
 
-        # ✅ Filter section
+        # Step 3: Filter Controls
         with st.expander("🔍 Filter Options", expanded=True):
             col1, col2 = st.columns(2)
-            supplier_filter = col1.text_input("🔍 Filter by Supplier", key="mark_supplier_filter")
-            company_filter = col2.text_input("🏢 Filter by Company", key="mark_company_filter")
-            
-            today = date.today()
-            default_range = st.session_state.get("mark_date_range", [today, today])
-            
-            date_range = st.date_input(
-                "📅 Filter by Invoice Date Range",
-                value=default_range,
-                key="mark_date_range"
-            )
+            supplier_filter = col1.text_input("🔍 Filter by Supplier", st.session_state.get("mark_supplier_filter", ""), key="mark_supplier_filter")
+            company_filter = col2.text_input("🏢 Filter by Company", st.session_state.get("mark_company_filter", ""), key="mark_company_filter")
+            date_range = st.date_input("📅 Filter by Invoice Date Range", st.session_state.get("mark_date_range", []), key="mark_date_range")
 
-
-        # ✅ Apply filters
+        # Step 4: Apply Filters
         if supplier_filter:
             df = df[df["supplier_name"].str.contains(supplier_filter, case=False, na=False)]
         if company_filter:
             df = df[df["company_name"].str.contains(company_filter, case=False, na=False)]
         if isinstance(date_range, list) and len(date_range) == 2:
-            # Convert column to datetime
             df["invoice_date"] = pd.to_datetime(df["invoice_date"], errors="coerce")
-            
-            # Convert to .dt.date to match st.date_input format
             df = df[
-                (df["invoice_date"].dt.date >= date_range[0]) &
-                (df["invoice_date"].dt.date <= date_range[1])
+                (df["invoice_date"] >= pd.to_datetime(date_range[0])) &
+                (df["invoice_date"] <= pd.to_datetime(date_range[1]))
             ]
 
-
-
-        # ✅ Add select column, drop unused columns, reorder
+        # Step 5: Select All + Table Setup
         select_all = st.checkbox("🟢 Select All Filtered Rows", value=False, key="select_all_mark_paid")
         df["select"] = select_all
         df = df.drop(columns=["id", "status", "created_at", "paid_date", "paid_via", "remarks"], errors="ignore")
         cols = ["select"] + [col for col in df.columns if col != "select"]
         df = df[cols]
-        editable_cols = ["select"]
 
-        # ✅ Show table
+        # Step 6: Show Table
+        editable_cols = ["select"]
         edited = st.data_editor(
             df,
             use_container_width=True,
@@ -241,9 +235,10 @@ elif tab == "✅ Mark as Paid":
             disabled=[col for col in df.columns if col not in editable_cols]
         )
 
+        # Step 7: Extract selected rows
         selected = edited[edited["select"] == True]
 
-        # ✅ Paid form + validation
+        # Step 8: Payment Form
         if not selected.empty:
             paid_date = st.date_input("🗓️ Enter Paid Date", value=date.today())
             paid_sources = [""] + get_dropdown_values("name", "paid_sources")
