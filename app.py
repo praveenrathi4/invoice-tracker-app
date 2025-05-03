@@ -208,6 +208,8 @@ elif tab == "✅ Mark as Paid":
             key="mark_paid_editor",
             hide_index=True,
             column_order=cols
+            disabled=True,
+            column_config={"select": {"disabled": False}}
         )
                 
         selected = edited[edited["select"] == True]
