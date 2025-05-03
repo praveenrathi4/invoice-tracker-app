@@ -320,6 +320,7 @@ elif tab == "📁 Paid History":
                 (df["invoice_date"] >= pd.to_datetime(date_range[0])) &
                 (df["invoice_date"] <= pd.to_datetime(date_range[1]))
             ]
+        df["invoice_date"] = df["invoice_date"].dt.strftime("%d-%m-%Y")
 
         # Step 5: Select All
         select_all = st.checkbox("🟢 Select All Filtered Rows", value=False, key="select_all_paid_history")
