@@ -1,0 +1,15 @@
+credentials:
+  usernames:
+    youruser@example.com:
+      email: youruser@example.com
+      name: Your Name
+      password: "$2b$12$abcdehashedpassword1234"
+
+cookie:
+  expiry_days: 1
+  key: some_signature_key
+  name: streamlit_auth
+
+preauthorized:
+  emails:
+    - youruser@example.com
