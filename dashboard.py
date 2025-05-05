@@ -3,14 +3,20 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import requests
+import os
 
 # Fetch all invoices
 def fetch_all_invoices():
-    url = f"{st.secrets['SUPABASE_URL']}/rest/v1/invoices?select=*&limit=10000"
+    url = f"{SUPABASE_URL}/rest/v1/invoices?select=*&limit=10000"
+ 
+    SUPABASE_URL = os.getenv("SUPABASE_URL")
+    SUPABASE_API_KEY = os.getenv("SUPABASE_API_KEY")
+    
     headers = {
-        "apikey": st.secrets["SUPABASE_KEY"],
-        "Authorization": f"Bearer {st.secrets['SUPABASE_KEY']}",
+        "apikey": SUPABASE_API_KEY,
+        "Authorization": f"Bearer {SUPABASE_API_KEY}",
     }
+
     res = requests.get(url, headers=headers)
     if res.status_code == 200:
         return res.json()
