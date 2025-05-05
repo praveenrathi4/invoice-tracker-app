@@ -179,16 +179,17 @@ def extract_classic_fine_foods_soa(pdf_path, supplier_name, company_name):
 
 def extract_mr_popiah_soa(pdf_path, supplier_name, company_name):
     import pdfplumber
-    import pandas as pd
     import re
     from datetime import datetime
+    import pandas as pd
 
     rows = []
 
     def parse_date(raw):
+        raw = raw.replace("\n", " ").strip()
         for fmt in ("%d%b%Y", "%d %b %Y"):
             try:
-                return datetime.strptime(raw.strip().replace("\n", " "), fmt).strftime("%d/%m/%Y")
+                return datetime.strptime(raw, fmt).strftime("%d/%m/%Y")
             except:
                 continue
         return None
@@ -203,54 +204,56 @@ def extract_mr_popiah_soa(pdf_path, supplier_name, company_name):
         i = 0
         while i < len(all_lines):
             line = all_lines[i]
+
             if "INV-" in line:
+                invoice_line = line.strip()
                 next_line = all_lines[i + 1] if (i + 1 < len(all_lines)) else ""
-                use_next_line = bool(re.search(r"\d{1,2} \w+ ?\d{4}", next_line))
-                combined_line = f"{line} {next_line}" if use_next_line else line
-                tokens = combined_line.split()
+                tokens = invoice_line.split()
 
-                try:
-                    # Extract invoice no
-                    invoice_no = next(t for t in tokens if t.startswith("INV-"))
+                # Get invoice number
+                invoice_no = next((t for t in tokens if t.startswith("INV-")), None)
 
-                    # Extract invoice date: first token that looks like ddMMMyyyy or dd MMM yyyy
-                    invoice_date = None
-                    for t in tokens:
-                        if re.match(r"\d{1,2}[A-Za-z]{3}\d{4}", t) or re.match(r"\d{1,2} [A-Za-z]{3} \d{4}", t):
-                            invoice_date = parse_date(t)
+                # Get amount from current line only
+                amount = next((float(t.replace(",", "")) for t in reversed(tokens)
+                               if re.match(r"^\d+\.\d{2}$", t)), None)
+
+                # Extract invoice date
+                invoice_date = None
+                for t in tokens:
+                    if re.match(r"\d{1,2}[A-Za-z]{3}\d{4}", t) or re.match(r"\d{1,2} [A-Za-z]{3} \d{4}", t):
+                        invoice_date = parse_date(t)
+                        break
+
+                # Try due date from tokens after invoice_no
+                due_date = None
+                if invoice_no in tokens:
+                    idx = tokens.index(invoice_no)
+                    for j in range(idx + 1, len(tokens)):
+                        if re.match(r"\d{1,2}[A-Za-z]{3}\d{4}", tokens[j]) or re.match(r"\d{1,2} [A-Za-z]{3} \d{4}", tokens[j]):
+                            due_date = parse_date(tokens[j])
                             break
 
-                    # Extract due date: scan right side from invoice_no
-                    due_date = None
-                    try:
-                        idx = tokens.index(invoice_no)
-                        for j in range(idx + 1, len(tokens)):
-                            if re.match(r"\d{1,2}[A-Za-z]{3}\d{4}", tokens[j]) or re.match(r"\d{1,2} [A-Za-z]{3} \d{4}", tokens[j]):
-                                due_date = parse_date(tokens[j])
-                                break
-                    except:
-                        pass
+                # If not found, check next line for spillover date
+                if not due_date and next_line:
+                    if re.search(r"(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)", next_line) or re.search(r"\d{4}", next_line):
+                        maybe_tokens = next_line.split()
+                        for t in maybe_tokens:
+                            if re.match(r"\d{1,2}[A-Za-z]{3}\d{4}", t) or re.match(r"\d{1,2} [A-Za-z]{3} \d{4}", t):
+                                candidate_due = parse_date(t)
+                                if candidate_due and candidate_due != invoice_date:
+                                    due_date = candidate_due
+                                    break
 
-                    # Extract amount: last token that looks like a decimal
-                    amount = None
-                    for t in reversed(tokens):
-                        if re.match(r"^\d+\.\d{2}$", t):
-                            amount = float(t.replace(",", "").replace("$", ""))
-                            break
-
-                    if invoice_no and invoice_date and amount is not None:
-                        rows.append({
-                            "supplier_name": supplier_name,
-                            "company_name": company_name,
-                            "invoice_no": invoice_no,
-                            "invoice_date": invoice_date,
-                            "due_date": due_date,  # leave as None if not parsed
-                            "amount": amount,
-                            "reference": None
-                        })
-
-                except:
-                    pass
+                if invoice_no and invoice_date and amount is not None:
+                    rows.append({
+                        "supplier_name": supplier_name,
+                        "company_name": company_name,
+                        "invoice_no": invoice_no,
+                        "invoice_date": invoice_date,
+                        "due_date": due_date,
+                        "amount": amount,
+                        "reference": None
+                    })
 
             i += 1
 
