@@ -75,11 +75,18 @@ elif authentication_status:
     def extract_invoice_data_from_pdf(file, supplier_name, company_name, is_invoice=True):
         with pdfplumber.open(file) as pdf:
             text = "\n".join(page.extract_text() for page in pdf.pages if page.extract_text())
-        extractor_map = SUPPLIER_EXTRACTORS if is_invoice else SUPPLIER_SOA_EXTRACTORS
-        matched_supplier = get_best_supplier_match(text, extractor_map)
+    
+        # Use the unified dictionary with (name, is_soa) keys
+        is_soa = not is_invoice
+        matched_supplier = get_best_supplier_match(text, [key[0] for key in SUPPLIER_EXTRACTORS.keys()])
+    
         if matched_supplier:
-            st.info(f"📌 Matched Supplier Extractor: {matched_supplier} ({'Invoice' if is_invoice else 'SOA'})")
-            return extractor_map[matched_supplier](file, supplier_name, company_name)
+            key = (matched_supplier, is_soa)
+            extractor = SUPPLIER_EXTRACTORS.get(key)
+            if extractor:
+                st.info(f"📌 Matched Supplier Extractor: {matched_supplier} ({'SOA' if is_soa else 'Invoice'})")
+                return extractor(file, supplier_name, company_name)
+    
         st.warning("⚠️ No matching extractor found.")
         return {
             "supplier_name": supplier_name,
@@ -90,6 +97,7 @@ elif authentication_status:
             "amount": None,
             "reference": None
         }
+
     
     def get_invoices_by_status(status):
         url = f"{SUPABASE_URL}/rest/v1/{TABLE_NAME}?status=eq.{status}&select=*"
