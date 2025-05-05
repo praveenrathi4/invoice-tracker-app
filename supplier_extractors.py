@@ -14,6 +14,72 @@ def format_date(date_str, formats=["%d/%m/%Y", "%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y
     return date_str
 
 # ---------------------- Sample Extractor: Sourdough ----------------------
+def extract_double_chin_soa(pdf_path, supplier_name, company_name):
+    import pdfplumber
+    import re
+    from datetime import datetime
+
+    rows = []
+
+    def parse_date(raw):
+        try:
+            return datetime.strptime(raw.strip(), "%d/%m/%y").strftime("%d/%m/%Y")
+        except:
+            return None
+
+    with pdfplumber.open(pdf_path) as pdf:
+        for page in pdf.pages:
+            text = page.extract_text()
+            if not text:
+                continue
+
+            lines = text.split('\n')
+            for i, line in enumerate(lines):
+                # Match the line with or without Ext Doc No
+                match = re.match(
+                    r'^(SI\d+)\s+(\d{2}/\d{2}/\d{2})\s+Order\s+(SI\d+)\s+(?:([A-Z0-9/\-]+)\s+)?([\d,]+\.\d{2})\s+([\d,]+\.\d{2})$',
+                    line.strip()
+                )
+
+                if match:
+                    invoice_no, post_date, desc_doc, ext_doc_no, rem_amt, balance = match.groups()
+                    invoice_date = parse_date(post_date)
+
+                    rows.append({
+                        "supplier_name": supplier_name,
+                        "company_name": company_name,
+                        "invoice_no": invoice_no,
+                        "invoice_date": invoice_date,
+                        "due_date": invoice_date,
+                        "amount": float(rem_amt.replace(",", "")),
+                        "reference": ext_doc_no or None
+                    })
+
+                # Handle case when amount comes in next line (e.g. 392.40 in next line)
+                elif re.match(r'^\d{2}/\d{2}/\d{2}', line.strip()) is None and re.match(r'^\d{1,3}(,\d{3})*\.\d{2}\s+\d{1,3}(,\d{3})*\.\d{2}$', line.strip()):
+                    prev_line = lines[i - 1] if i > 0 else ""
+                    match = re.match(
+                        r'^(SI\d+)\s+(\d{2}/\d{2}/\d{2})\s+Order\s+(SI\d+)\s*(?:([A-Z0-9/\-]+))?$',
+                        prev_line.strip()
+                    )
+                    if match:
+                        invoice_no, post_date, desc_doc, ext_doc_no = match.groups()
+                        invoice_date = parse_date(post_date)
+                        amounts = re.findall(r"[\d,]+\.\d{2}", line)
+                        if len(amounts) == 2:
+                            rem_amt, balance = [float(a.replace(",", "")) for a in amounts]
+                            rows.append({
+                                "supplier_name": supplier_name,
+                                "company_name": company_name,
+                                "invoice_no": invoice_no,
+                                "invoice_date": invoice_date,
+                                "due_date": invoice_date,
+                                "amount": rem_amt,
+                                "reference": ext_doc_no or None
+                            })
+
+    return rows
+
 
 def extract_sourdough_invoice(pdf_path, supplier_name, company_name):
 
@@ -239,6 +305,7 @@ SUPPLIER_EXTRACTORS = {
     ("Air Liquide Singapore Pte Ltd", False): extract_air_liquide_invoice,
     ("Classic Fine Foods", True): extract_classic_fine_foods_soa,
     ("Mr Popiah Pte Ltd", True): extract_mr_popiah_soa,
+    ("Double Chin Food Services Pte Ltd", True): extract_double_chin_soa,
     # Add more (supplier_name, is_soa): extractor_function
 }
 
