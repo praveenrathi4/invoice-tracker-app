@@ -7,4 +7,4 @@ streamlit-authenticator==0.3.2
 bcrypt
 PyYAML
 extra-streamlit-components
-openai==1.14.3
+openai
