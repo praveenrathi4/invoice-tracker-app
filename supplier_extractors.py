@@ -15,12 +15,15 @@ def format_date(date_str, formats=["%d/%m/%Y", "%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y
 
 
 def extract_gourmet_perfect_soa(pdf_path, supplier_name, company_name):
+    import pdfplumber
+    import re
+    from datetime import datetime
 
     rows = []
 
     def parse_date(raw):
         try:
-            return datetime.strptime(raw.strip(), "%d %b %Y").strftime("%d/%m/%Y")
+            return datetime.strptime(raw.strip(), "%d%b%Y").strftime("%d/%m/%Y")
         except:
             return None
 
@@ -33,12 +36,12 @@ def extract_gourmet_perfect_soa(pdf_path, supplier_name, company_name):
 
             for line in lines:
                 match = re.match(
-                    r"^(\d{1,2} \w{3} \d{4})\s+"    # invoice date
-                    r"(\d{1,2} \w{3} \d{4})\s+"    # due date
-                    r"(INV-\d+)\s+"                # invoice number
-                    r"([\w\-]+)?\s+"               # invoice reference (optional)
-                    r"(?:[-\d.,]+\s+){5,6}"        # skip aging columns
-                    r"([\d.,]+)$",                # final amount
+                    r"^(\d{1,2}[A-Za-z]{3}\d{4})\s+"     # invoice date
+                    r"(\d{1,2}[A-Za-z]{3}\d{4})\s+"     # due date
+                    r"(INV-\d+)\s+"                    # invoice number
+                    r"([A-Z0-9\-]*)\s+"                # invoice reference (optional)
+                    r"(?:[-\d.,]+\s+){5,6}"            # skip 5-6 aging columns
+                    r"([\d.,]+)$",                    # final amount
                     line.strip()
                 )
                 if match:
