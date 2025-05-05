@@ -5,12 +5,12 @@ from datetime import datetime
 import requests
 import os
 
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_API_KEY = os.getenv("SUPABASE_API_KEY")
+
 # Fetch all invoices
 def fetch_all_invoices():
     url = f"{SUPABASE_URL}/rest/v1/invoices?select=*&limit=10000"
- 
-    SUPABASE_URL = os.getenv("SUPABASE_URL")
-    SUPABASE_API_KEY = os.getenv("SUPABASE_API_KEY")
     
     headers = {
         "apikey": SUPABASE_API_KEY,
