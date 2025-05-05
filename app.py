@@ -37,6 +37,7 @@ elif authentication_status:
     import os
     from io import BytesIO
     from supplier_extractors import SUPPLIER_EXTRACTORS, get_best_supplier_match
+    from dashboard import render_dashboard
     
     SUPABASE_URL = os.getenv("SUPABASE_URL")
     SUPABASE_API_KEY = os.getenv("SUPABASE_API_KEY")
@@ -119,7 +120,18 @@ elif authentication_status:
         return True
     
     st.sidebar.title("🧭 Navigation")
-    tab = st.sidebar.radio("Go to", ["📤 Upload Invoices", "📋 Outstanding Invoices", "✅ Mark as Paid", "📁 Paid History"])
+    tab = st.sidebar.radio("Go to", [
+        "📊 Dashboard",               # 🔹 Add this line
+        "📤 Upload Invoices",
+        "📋 Outstanding Invoices",
+        "✅ Mark as Paid",
+        "📁 Paid History"
+    ])
+
+    
+    if tab == "📊 Dashboard":
+        render_dashboard()
+
     
     if tab == "📤 Upload Invoices":
         st.title("📤 Upload Invoices or SOA")
