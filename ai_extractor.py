@@ -5,7 +5,6 @@ import streamlit as st
 import json
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
-print(openai.models.list())
 
 INVOICE_FIELDS_PROMPT = """
 You are an expert document parser.
@@ -28,6 +27,7 @@ def ai_extract_invoice_fields(pdf_text, supplier_name, company_name):
     prompt = INVOICE_FIELDS_PROMPT + pdf_text.strip()[:4000]  # Keep token length safe
 
     try:
+        response = None
         for model in ["gpt-4-turbo", "gpt-3.5-turbo"]:
             try:
                 response = openai.chat.completions.create(
@@ -39,9 +39,10 @@ def ai_extract_invoice_fields(pdf_text, supplier_name, company_name):
                     temperature=0.1,
                     max_tokens=300
                 )
+                st.info(f"✅ Extraction succeeded with {model}")
                 break  # If successful, exit loop
-            except openai.OpenAIError:
-                response = None
+            except Exception as inner_e:
+                st.warning(f"❌ {model} failed: {inner_e}")
                 continue
 
         if not response:
