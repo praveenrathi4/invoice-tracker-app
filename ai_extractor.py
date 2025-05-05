@@ -1,0 +1,64 @@
+# ai_extractor.py
+import openai
+import os
+import streamlit as st
+import json
+
+openai.api_key = st.secrets["OPENAI_API_KEY"]
+
+INVOICE_FIELDS_PROMPT = """
+You are an expert document parser.
+Given the raw text content of an invoice or supplier statement,
+your task is to extract the following fields:
+
+- invoice_no: Invoice number (e.g., INV-12345)
+- invoice_date: Invoice date in dd/mm/yyyy format
+- due_date: Due date if available, in dd/mm/yyyy
+- amount: Total amount due (numeric only)
+- reference: PO/Contract number if available
+
+Return your answer strictly as a single JSON object with these keys.
+If any field is not found, set it to null.
+
+Input PDF Text:
+"""
+
+def ai_extract_invoice_fields(pdf_text, supplier_name, company_name):
+    prompt = INVOICE_FIELDS_PROMPT + pdf_text.strip()[:4000]  # Keep token length safe
+
+    try:
+        response = openai.chat.completions.create(
+            model="gpt-4-turbo",
+            messages=[
+                {"role": "system", "content": "You are a document extraction assistant."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.1,
+            max_tokens=300
+        )
+
+        reply = response.choices[0].message.content.strip()
+        result = json.loads(reply)
+
+        # Ensure final structure
+        return {
+            "supplier_name": supplier_name,
+            "company_name": company_name,
+            "invoice_no": result.get("invoice_no"),
+            "invoice_date": result.get("invoice_date"),
+            "due_date": result.get("due_date"),
+            "amount": result.get("amount"),
+            "reference": result.get("reference")
+        }
+
+    except Exception as e:
+        st.error(f"⚠️ AI Extraction failed: {str(e)}")
+        return {
+            "supplier_name": supplier_name,
+            "company_name": company_name,
+            "invoice_no": None,
+            "invoice_date": None,
+            "due_date": None,
+            "amount": None,
+            "reference": None
+        }
