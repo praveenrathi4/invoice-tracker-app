@@ -199,7 +199,7 @@ def extract_mr_popiah_soa(pdf_path, supplier_name, company_name):
                 continue
 
             invoice_blocks = re.findall(
-                r"(\d{1,2}[A-Za-z]{3}\d{4})\s+Invoice\s+#\s+(INV-\d+)(.*?)?(\d{1,2}[A-Za-z]{3}\d{4})\s+(\d+\.\d{2})",
+                r"(\d{1,2}[A-Za-z]{3}\d{4})\s+Invoice\s+#\s+(INV-\d+)(.*?)?(\d{1,2}[A-Za-z]{3}\d{4})?\s+(\d+\.\d{2})",
                 text
             )
 
@@ -207,10 +207,13 @@ def extract_mr_popiah_soa(pdf_path, supplier_name, company_name):
                 invoice_date_raw, invoice_no, mid_text, due_date_raw, amount_str = match
 
                 invoice_date = parse_date(invoice_date_raw)
-                due_date = parse_date(due_date_raw)
-                amount = float(amount_str.replace(",", ""))
-                reference = None
+                due_date = parse_date(due_date_raw) if due_date_raw else None
+                try:
+                    amount = float(amount_str.replace(",", ""))
+                except:
+                    amount = None
 
+                reference = None
                 if mid_text:
                     ref_match = re.search(r"(PO[#\s]?\d+|\d{6,})", mid_text)
                     if ref_match:
