@@ -38,6 +38,7 @@ elif authentication_status:
     from io import BytesIO
     from supplier_extractors import SUPPLIER_EXTRACTORS, get_best_supplier_match
     from dashboard import render_dashboard
+    from ai_extractor import ai_extract_invoice_fields
     
     SUPABASE_URL = os.getenv("SUPABASE_URL")
     SUPABASE_API_KEY = os.getenv("SUPABASE_API_KEY")
