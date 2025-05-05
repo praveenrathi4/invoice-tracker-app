@@ -3,6 +3,7 @@ import openai
 import os
 import streamlit as st
 import json
+from openai import InvalidRequestError
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
@@ -38,7 +39,7 @@ def ai_extract_invoice_fields(pdf_text, supplier_name, company_name):
                 temperature=0.1,
                 max_tokens=300
             )
-        except openai.error.InvalidRequestError:
+        except InvalidRequestError:
             # Fallback to gpt-3.5-turbo
             response = openai.chat.completions.create(
                 model="gpt-3.5-turbo",
