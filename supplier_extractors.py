@@ -186,9 +186,9 @@ def extract_mr_popiah_soa(pdf_path, supplier_name, company_name):
     rows = []
 
     def parse_date(raw):
-        for fmt in ("%d %b %Y", "%d %b\n%Y"):  # handle line break due dates
+        for fmt in ("%d%b%Y", "%d %b %Y"):
             try:
-                return datetime.strptime(raw.replace("\n", " ").strip(), fmt).strftime("%d/%m/%Y")
+                return datetime.strptime(raw.strip().replace("\n", " "), fmt).strftime("%d/%m/%Y")
             except:
                 continue
         return None
@@ -203,31 +203,54 @@ def extract_mr_popiah_soa(pdf_path, supplier_name, company_name):
         i = 0
         while i < len(all_lines):
             line = all_lines[i]
-            if re.search(r"INV-\d+", line):
-                # Merge next line if it may contain a date
-                combined_line = line + " " + all_lines[i + 1] if (i + 1 < len(all_lines) and re.search(r"\d{1,2} \w+ ?\n?\d{4}", all_lines[i + 1])) else line
+            if "INV-" in line:
+                next_line = all_lines[i + 1] if (i + 1 < len(all_lines)) else ""
+                use_next_line = bool(re.search(r"\d{1,2} \w+ ?\d{4}", next_line))
+                combined_line = f"{line} {next_line}" if use_next_line else line
                 tokens = combined_line.split()
 
-                # Extract values
                 try:
+                    # Extract invoice no
                     invoice_no = next(t for t in tokens if t.startswith("INV-"))
-                    invoice_date = parse_date(" ".join(tokens[0:3]))
-                    due_date_candidates = [t for t in tokens if re.match(r"\d{1,2} \w+ \d{4}", t)]
-                    due_date = parse_date(" ".join(due_date_candidates[-1:])) if due_date_candidates else None
-                    amount = float(tokens[-3].replace(",", "").replace("$", ""))  # pick 3rd last (balance)
-                except Exception:
-                    i += 1
-                    continue
 
-                rows.append({
-                    "supplier_name": supplier_name,
-                    "company_name": company_name,
-                    "invoice_no": invoice_no,
-                    "invoice_date": invoice_date,
-                    "due_date": due_date,
-                    "amount": amount,
-                    "reference": None
-                })
+                    # Extract invoice date: first token that looks like ddMMMyyyy or dd MMM yyyy
+                    invoice_date = None
+                    for t in tokens:
+                        if re.match(r"\d{1,2}[A-Za-z]{3}\d{4}", t) or re.match(r"\d{1,2} [A-Za-z]{3} \d{4}", t):
+                            invoice_date = parse_date(t)
+                            break
+
+                    # Extract due date: scan right side from invoice_no
+                    due_date = None
+                    try:
+                        idx = tokens.index(invoice_no)
+                        for j in range(idx + 1, len(tokens)):
+                            if re.match(r"\d{1,2}[A-Za-z]{3}\d{4}", tokens[j]) or re.match(r"\d{1,2} [A-Za-z]{3} \d{4}", tokens[j]):
+                                due_date = parse_date(tokens[j])
+                                break
+                    except:
+                        pass
+
+                    # Extract amount: last token that looks like a decimal
+                    amount = None
+                    for t in reversed(tokens):
+                        if re.match(r"^\d+\.\d{2}$", t):
+                            amount = float(t.replace(",", "").replace("$", ""))
+                            break
+
+                    if invoice_no and invoice_date and amount is not None:
+                        rows.append({
+                            "supplier_name": supplier_name,
+                            "company_name": company_name,
+                            "invoice_no": invoice_no,
+                            "invoice_date": invoice_date,
+                            "due_date": due_date,  # leave as None if not parsed
+                            "amount": amount,
+                            "reference": None
+                        })
+
+                except:
+                    pass
 
             i += 1
 
