@@ -74,11 +74,11 @@ elif authentication_status:
             st.error(f"🔴 Request failed: {str(e)}")
             return 500, {"error": str(e)}
     
+    
     def extract_invoice_data_from_pdf(file, supplier_name, company_name, is_invoice=True):
         with pdfplumber.open(file) as pdf:
             text = "\n".join(page.extract_text() for page in pdf.pages if page.extract_text())
     
-        # Use the unified dictionary with (name, is_soa) keys
         is_soa = not is_invoice
         matched_supplier = get_best_supplier_match(text, [key[0] for key in SUPPLIER_EXTRACTORS.keys()])
     
@@ -89,16 +89,9 @@ elif authentication_status:
                 st.info(f"📌 Matched Supplier Extractor: {matched_supplier} ({'SOA' if is_soa else 'Invoice'})")
                 return extractor(file, supplier_name, company_name)
     
-        st.warning("⚠️ No matching extractor found.")
-        return {
-            "supplier_name": supplier_name,
-            "company_name": company_name,
-            "invoice_no": None,
-            "invoice_date": None,
-            "due_date": None,
-            "amount": None,
-            "reference": None
-        }
+        # 🤖 Use AI fallback for unmatched suppliers
+        st.warning("🤖 No extractor found. Trying AI-powered fallback...")
+        return ai_extract_invoice_fields(text, supplier_name, company_name)
 
     
     def get_invoices_by_status(status):
