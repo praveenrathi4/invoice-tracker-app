@@ -13,12 +13,56 @@ def format_date(date_str, formats=["%d/%m/%Y", "%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y
             continue
     return date_str
 
-# ---------------------- Sample Extractor: Sourdough ----------------------
-def extract_double_chin_soa(pdf_path, supplier_name, company_name):
-    import pdfplumber
-    import re
-    from datetime import datetime
 
+def extract_gourmet_perfect_soa(pdf_path, supplier_name, company_name):
+
+    rows = []
+
+    def parse_date(raw):
+        try:
+            return datetime.strptime(raw.strip(), "%d %b %Y").strftime("%d/%m/%Y")
+        except:
+            return None
+
+    with pdfplumber.open(pdf_path) as pdf:
+        for page in pdf.pages:
+            text = page.extract_text()
+            if not text:
+                continue
+            lines = text.split("\n")
+
+            for line in lines:
+                match = re.match(
+                    r"^(\d{1,2} \w{3} \d{4})\s+"    # invoice date
+                    r"(\d{1,2} \w{3} \d{4})\s+"    # due date
+                    r"(INV-\d+)\s+"                # invoice number
+                    r"([\w\-]+)?\s+"               # invoice reference (optional)
+                    r"(?:[-\d.,]+\s+){5,6}"        # skip aging columns
+                    r"([\d.,]+)$",                # final amount
+                    line.strip()
+                )
+                if match:
+                    invoice_date, due_date, invoice_no, reference, amount = match.groups()
+                    try:
+                        amount = float(amount.replace(",", ""))
+                    except:
+                        amount = None
+
+                    rows.append({
+                        "supplier_name": supplier_name,
+                        "company_name": company_name,
+                        "invoice_no": invoice_no,
+                        "invoice_date": parse_date(invoice_date),
+                        "due_date": parse_date(due_date),
+                        "amount": amount,
+                        "reference": reference or None
+                    })
+
+    return rows
+
+
+
+def extract_double_chin_soa(pdf_path, supplier_name, company_name):
     rows = []
 
     def parse_date(raw):
@@ -192,9 +236,6 @@ def extract_air_liquide_invoice(pdf_path, supplier_name, company_name):
 
 
 def extract_classic_fine_foods_soa(pdf_path, supplier_name, company_name):
-    import pdfplumber
-    import pandas as pd
-    from datetime import datetime
 
     def to_ddmmyyyy(date_str):
         for fmt in ("%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d"):
@@ -244,9 +285,6 @@ def extract_classic_fine_foods_soa(pdf_path, supplier_name, company_name):
 
 
 def extract_mr_popiah_soa(pdf_path, supplier_name, company_name):
-    import pdfplumber
-    import re
-    from datetime import datetime
 
     rows = []
 
@@ -306,6 +344,7 @@ SUPPLIER_EXTRACTORS = {
     ("Classic Fine Foods", True): extract_classic_fine_foods_soa,
     ("Mr Popiah Pte Ltd", True): extract_mr_popiah_soa,
     ("Double Chin Food Services Pte Ltd", True): extract_double_chin_soa,
+    ("Gourmet Perfect Pte Ltd", True): extract_gourmet_perfect_soa,
     # Add more (supplier_name, is_soa): extractor_function
 }
 
