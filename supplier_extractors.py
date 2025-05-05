@@ -177,19 +177,58 @@ def extract_classic_fine_foods_soa(pdf_path, supplier_name, company_name):
     return extracted_rows
 
 
+def extract_mr_popiah_soa(pdf_path, supplier_name, company_name):
+    rows = []
+
+    def parse_date(raw):
+        try:
+            return datetime.strptime(raw.strip(), "%d %b %Y").strftime("%d/%m/%Y")
+        except:
+            return None
+
+    with pdfplumber.open(pdf_path) as pdf:
+        for page in pdf.pages:
+            lines = page.extract_text().split("\n")
+
+            for i, line in enumerate(lines):
+                if re.match(r"INV-\d+", line):  # starts with invoice number
+                    next_line = lines[i + 1].strip() if i + 1 < len(lines) else ""
+                    full_line = f"{line.strip()} {next_line}" if re.search(r"\d{1,2} \w+ \d{4}", next_line) else line.strip()
+                    tokens = full_line.split()
+
+                    try:
+                        invoice_no = tokens[0]
+                        invoice_date = parse_date(" ".join(tokens[1:4]))
+                        due_date = parse_date(" ".join(tokens[4:7]))
+                        amount = float(tokens[-1].replace(",", "").replace("$", ""))
+                    except:
+                        continue
+
+                    rows.append({
+                        "supplier_name": supplier_name,
+                        "company_name": company_name,
+                        "invoice_no": invoice_no,
+                        "invoice_date": invoice_date,
+                        "due_date": due_date,
+                        "amount": amount,
+                        "reference": None
+                    })
+
+    return rows
+
+
+
 # ---------------------- Extractor Mapping ----------------------
 
 SUPPLIER_EXTRACTORS = {
-    "Sourdough Factory LLP": extract_sourdough_invoice,
-    "Fu Luxe Pte. Ltd.": extract_fu_luxe_invoice,
-    "Air Liquide Singapore Pte Ltd": extract_air_liquide_invoice,
-    # Add more as needed
+    ("Sourdough Factory LLP", False): extract_sourdough_invoice,
+    ("Fu Luxe Pte. Ltd.", False): extract_fu_luxe_invoice,
+    ("Air Liquide Singapore Pte Ltd", False): extract_air_liquide_invoice,
+    ("Classic Fine Foods", True): extract_classic_fine_foods_soa,
+    ("Mr Popiah Pte Ltd", True): extract_mr_popiah_soa,
+    # Add more (supplier_name, is_soa): extractor_function
 }
 
-SUPPLIER_SOA_EXTRACTORS = {
-    "Classic Fine Foods": extract_classic_fine_foods_soa,
-    # Add here SOA Extractors
-}
 
 # ---------------------- Fuzzy Matching Function ----------------------
 
