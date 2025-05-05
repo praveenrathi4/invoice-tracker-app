@@ -157,6 +157,12 @@ elif authentication_status:
                         row["status"] = "Unpaid"
                         extracted_rows.append(row)
     
+                if extracted_rows:
+                    st.subheader("🔍 Raw Extracted Rows (Before Validation)")
+                    st.dataframe(pd.DataFrame(extracted_rows))
+                else:
+                    st.info("🕵️ No rows were extracted from the uploaded PDFs.")
+                    
                 required_fields = ["invoice_no", "invoice_date", "amount"]
                 valid_rows = [r for r in extracted_rows if all(r.get(f) not in [None, ""] for f in required_fields)]
     
