@@ -142,8 +142,8 @@ elif authentication_status:
                 for file in uploaded_files:
                     extracted_data = extract_invoice_data_from_pdf(file, supplier_name, company_name, is_invoice)
                     extracted_list = extracted_data if isinstance(extracted_data, list) else [extracted_data]
-                    st.write("🔍 Extracted Data Type:", type(extracted_data))
-                    st.write("🔍 Raw Extractor Output:", extracted_data)
+                    # st.write("🔍 Extracted Data Type:", type(extracted_data))
+                    # st.write("🔍 Raw Extractor Output:", extracted_data)
     
                     for row in extracted_list:
                         for date_field in ["invoice_date", "due_date"]:
