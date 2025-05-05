@@ -178,59 +178,58 @@ def extract_classic_fine_foods_soa(pdf_path, supplier_name, company_name):
 
 
 def extract_mr_popiah_soa(pdf_path, supplier_name, company_name):
+    import pdfplumber
+    import pandas as pd
+    import re
+    from datetime import datetime
+
     rows = []
 
     def parse_date(raw):
-        try:
-            return datetime.strptime(raw.strip(), "%d%b%Y").strftime("%d/%m/%Y")
-        except:
-            return None
+        for fmt in ("%d %b %Y", "%d %b\n%Y"):  # handle line break due dates
+            try:
+                return datetime.strptime(raw.replace("\n", " ").strip(), fmt).strftime("%d/%m/%Y")
+            except:
+                continue
+        return None
 
     with pdfplumber.open(pdf_path) as pdf:
+        all_lines = []
         for page in pdf.pages:
-            lines = page.extract_text().split("\n")
+            text = page.extract_text()
+            if text:
+                all_lines.extend(text.split("\n"))
 
-            for i, line in enumerate(lines):
-                # 🟡 Look for any line that contains an invoice number pattern
-                if re.search(r"INV-\d+", line):
-                    tokens = line.strip().split()
+        i = 0
+        while i < len(all_lines):
+            line = all_lines[i]
+            if re.search(r"INV-\d+", line):
+                # Merge next line if it may contain a date
+                combined_line = line + " " + all_lines[i + 1] if (i + 1 < len(all_lines) and re.search(r"\d{1,2} \w+ ?\n?\d{4}", all_lines[i + 1])) else line
+                tokens = combined_line.split()
 
-                    # ✅ Look for invoice_no in tokens
-                    invoice_no = next((t for t in tokens if t.startswith("INV-")), None)
+                # Extract values
+                try:
+                    invoice_no = next(t for t in tokens if t.startswith("INV-"))
+                    invoice_date = parse_date(" ".join(tokens[0:3]))
+                    due_date_candidates = [t for t in tokens if re.match(r"\d{1,2} \w+ \d{4}", t)]
+                    due_date = parse_date(" ".join(due_date_candidates[-1:])) if due_date_candidates else None
+                    amount = float(tokens[-3].replace(",", "").replace("$", ""))  # pick 3rd last (balance)
+                except Exception:
+                    i += 1
+                    continue
 
-                    # ✅ Look for invoice_date as first token with digits and a 3-letter month
-                    invoice_date_token = next((t for t in tokens if re.match(r"\d{1,2}[A-Za-z]{3}\d{4}", t)), None)
-                    invoice_date = parse_date(invoice_date_token) if invoice_date_token else None
+                rows.append({
+                    "supplier_name": supplier_name,
+                    "company_name": company_name,
+                    "invoice_no": invoice_no,
+                    "invoice_date": invoice_date,
+                    "due_date": due_date,
+                    "amount": amount,
+                    "reference": None
+                })
 
-                    # ✅ Look for due_date token after invoice_no
-                    due_date = None
-                    try:
-                        idx = tokens.index(invoice_no)
-                        due_date_token = tokens[idx + 1] if idx + 1 < len(tokens) else ""
-                        if re.match(r"\d{1,2}[A-Za-z]{3}\d{4}", due_date_token):
-                            due_date = parse_date(due_date_token)
-                    except:
-                        pass
-
-                    # ✅ Look for last numeric value as amount
-                    amount = None
-                    for t in reversed(tokens):
-                        try:
-                            amount = float(t.replace(",", "").replace("$", ""))
-                            break
-                        except:
-                            continue
-
-                    if invoice_no and invoice_date and amount is not None:
-                        rows.append({
-                            "supplier_name": supplier_name,
-                            "company_name": company_name,
-                            "invoice_no": invoice_no,
-                            "invoice_date": invoice_date,
-                            "due_date": due_date,
-                            "amount": amount,
-                            "reference": None
-                        })
+            i += 1
 
     return rows
 
