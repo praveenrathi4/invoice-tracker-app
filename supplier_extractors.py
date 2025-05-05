@@ -178,80 +178,53 @@ def extract_classic_fine_foods_soa(pdf_path, supplier_name, company_name):
 
 
 def extract_mr_popiah_soa(pdf_path, supplier_name, company_name):
+    import pdfplumber
+    import re
+    from datetime import datetime
+
     rows = []
 
     def parse_date(raw):
-        raw = raw.replace("\n", " ").strip()
         for fmt in ("%d%b%Y", "%d %b %Y"):
             try:
-                return datetime.strptime(raw, fmt).strftime("%d/%m/%Y")
+                return datetime.strptime(raw.strip(), fmt).strftime("%d/%m/%Y")
             except:
                 continue
         return None
 
     with pdfplumber.open(pdf_path) as pdf:
-        all_lines = []
         for page in pdf.pages:
             text = page.extract_text()
-            if text:
-                all_lines.extend(text.split("\n"))
+            if not text:
+                continue
 
-        i = 0
-        while i < len(all_lines):
-            line = all_lines[i]
-            if "INV-" in line:
-                # Capture current and next line in case due date or reference spill over
-                current_line = line.strip()
-                next_line = all_lines[i + 1].strip() if i + 1 < len(all_lines) else ""
-                combined = current_line + " " + next_line
+            invoice_blocks = re.findall(
+                r"(\d{1,2}[A-Za-z]{3}\d{4})\s+Invoice\s+#\s+(INV-\d+)(.*?)?(\d{1,2}[A-Za-z]{3}\d{4})\s+(\d+\.\d{2})",
+                text
+            )
 
-                tokens = combined.split()
-                try:
-                    # Parse invoice_no
-                    invoice_no = next((t for t in tokens if t.startswith("INV-")), None)
+            for match in invoice_blocks:
+                invoice_date_raw, invoice_no, mid_text, due_date_raw, amount_str = match
 
-                    # Parse invoice_date (first valid date from start)
-                    invoice_date = None
-                    for t in tokens:
-                        invoice_date = parse_date(t)
-                        if invoice_date:
-                            break
+                invoice_date = parse_date(invoice_date_raw)
+                due_date = parse_date(due_date_raw)
+                amount = float(amount_str.replace(",", ""))
+                reference = None
 
-                    # Parse due_date (valid date after invoice_no)
-                    due_date = None
-                    if invoice_no in tokens:
-                        idx = tokens.index(invoice_no)
-                        for j in range(idx + 1, len(tokens)):
-                            possible = parse_date(tokens[j])
-                            if possible and possible != invoice_date:
-                                due_date = possible
-                                break
+                if mid_text:
+                    ref_match = re.search(r"(PO[#\s]?\d+|\d{6,})", mid_text)
+                    if ref_match:
+                        reference = ref_match.group(0).strip()
 
-                    # Parse amount (last valid decimal)
-                    amount = next((float(t.replace(",", "")) for t in reversed(tokens)
-                                   if re.match(r"^\d+\.\d{2}$", t)), None)
-
-                    # Parse reference (token starting with PO or long numeric string after invoice_no)
-                    reference = None
-                    if invoice_no in tokens:
-                        ref_candidates = tokens[tokens.index(invoice_no)+1:]
-                        reference = next((t for t in ref_candidates if "PO" in t or re.match(r"\d{6,}", t)), None)
-
-                    if invoice_no and invoice_date and amount is not None:
-                        rows.append({
-                            "supplier_name": supplier_name,
-                            "company_name": company_name,
-                            "invoice_no": invoice_no,
-                            "invoice_date": invoice_date,
-                            "due_date": due_date,
-                            "amount": amount,
-                            "reference": reference
-                        })
-
-                except:
-                    pass
-
-            i += 1
+                rows.append({
+                    "supplier_name": supplier_name,
+                    "company_name": company_name,
+                    "invoice_no": invoice_no,
+                    "invoice_date": invoice_date,
+                    "due_date": due_date,
+                    "amount": amount,
+                    "reference": reference
+                })
 
     return rows
 
