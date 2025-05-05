@@ -36,7 +36,7 @@ elif authentication_status:
     from datetime import datetime, date
     import os
     from io import BytesIO
-    from supplier_extractors import SUPPLIER_EXTRACTORS, SUPPLIER_SOA_EXTRACTORS, get_best_supplier_match
+    from supplier_extractors import SUPPLIER_EXTRACTORS, get_best_supplier_match
     
     SUPABASE_URL = os.getenv("SUPABASE_URL")
     SUPABASE_API_KEY = os.getenv("SUPABASE_API_KEY")
