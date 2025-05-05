@@ -182,7 +182,7 @@ def extract_mr_popiah_soa(pdf_path, supplier_name, company_name):
 
     def parse_date(raw):
         try:
-            return datetime.strptime(raw.strip(), "%d %b %Y").strftime("%d/%m/%Y")
+            return datetime.strptime(raw.strip(), "%d%b%Y").strftime("%d/%m/%Y")
         except:
             return None
 
@@ -191,31 +191,48 @@ def extract_mr_popiah_soa(pdf_path, supplier_name, company_name):
             lines = page.extract_text().split("\n")
 
             for i, line in enumerate(lines):
-                if re.match(r"INV-\d+", line):  # starts with invoice number
-                    next_line = lines[i + 1].strip() if i + 1 < len(lines) else ""
-                    full_line = f"{line.strip()} {next_line}" if re.search(r"\d{1,2} \w+ \d{4}", next_line) else line.strip()
-                    tokens = full_line.split()
+                # 🟡 Look for any line that contains an invoice number pattern
+                if re.search(r"INV-\d+", line):
+                    tokens = line.strip().split()
 
+                    # ✅ Look for invoice_no in tokens
+                    invoice_no = next((t for t in tokens if t.startswith("INV-")), None)
+
+                    # ✅ Look for invoice_date as first token with digits and a 3-letter month
+                    invoice_date_token = next((t for t in tokens if re.match(r"\d{1,2}[A-Za-z]{3}\d{4}", t)), None)
+                    invoice_date = parse_date(invoice_date_token) if invoice_date_token else None
+
+                    # ✅ Look for due_date token after invoice_no
+                    due_date = None
                     try:
-                        invoice_no = tokens[0]
-                        invoice_date = parse_date(" ".join(tokens[1:4]))
-                        due_date = parse_date(" ".join(tokens[4:7]))
-                        amount = float(tokens[-1].replace(",", "").replace("$", ""))
+                        idx = tokens.index(invoice_no)
+                        due_date_token = tokens[idx + 1] if idx + 1 < len(tokens) else ""
+                        if re.match(r"\d{1,2}[A-Za-z]{3}\d{4}", due_date_token):
+                            due_date = parse_date(due_date_token)
                     except:
-                        continue
+                        pass
 
-                    rows.append({
-                        "supplier_name": supplier_name,
-                        "company_name": company_name,
-                        "invoice_no": invoice_no,
-                        "invoice_date": invoice_date,
-                        "due_date": due_date,
-                        "amount": amount,
-                        "reference": None
-                    })
+                    # ✅ Look for last numeric value as amount
+                    amount = None
+                    for t in reversed(tokens):
+                        try:
+                            amount = float(t.replace(",", "").replace("$", ""))
+                            break
+                        except:
+                            continue
+
+                    if invoice_no and invoice_date and amount is not None:
+                        rows.append({
+                            "supplier_name": supplier_name,
+                            "company_name": company_name,
+                            "invoice_no": invoice_no,
+                            "invoice_date": invoice_date,
+                            "due_date": due_date,
+                            "amount": amount,
+                            "reference": None
+                        })
 
     return rows
-
 
 
 # ---------------------- Extractor Mapping ----------------------
