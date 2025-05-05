@@ -3,7 +3,6 @@ import openai
 import os
 import streamlit as st
 import json
-from openai import InvalidRequestError
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
@@ -28,28 +27,24 @@ def ai_extract_invoice_fields(pdf_text, supplier_name, company_name):
     prompt = INVOICE_FIELDS_PROMPT + pdf_text.strip()[:4000]  # Keep token length safe
 
     try:
-        try:
-            # Primary attempt: gpt-4-turbo
-            response = openai.chat.completions.create(
-                model="gpt-4-turbo",
-                messages=[
-                    {"role": "system", "content": "You are a document extraction assistant."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.1,
-                max_tokens=300
-            )
-        except InvalidRequestError:
-            # Fallback to gpt-3.5-turbo
-            response = openai.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": "You are a document extraction assistant."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.1,
-                max_tokens=300
-            )
+        for model in ["gpt-4-turbo", "gpt-3.5-turbo"]:
+            try:
+                response = openai.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": "You are a document extraction assistant."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.1,
+                    max_tokens=300
+                )
+                break  # If successful, exit loop
+            except openai.OpenAIError:
+                response = None
+                continue
+
+        if not response:
+            raise Exception("No available model succeeded.")
 
         reply = response.choices[0].message.content.strip()
         result = json.loads(reply)
