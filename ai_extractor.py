@@ -5,6 +5,7 @@ import streamlit as st
 import json
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
+print(openai.models.list())
 
 INVOICE_FIELDS_PROMPT = """
 You are an expert document parser.
