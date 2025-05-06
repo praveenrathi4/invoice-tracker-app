@@ -1,29 +1,3 @@
-# ai_extractor.py
-import openai
-import os
-import streamlit as st
-import json
-import re
-
-openai.api_key = st.secrets["OPENAI_API_KEY"]
-
-INVOICE_FIELDS_PROMPT = """
-You are an expert document parser.
-Given the raw text content of an invoice or supplier statement,
-your task is to extract the following fields:
-
-- invoice_no: Invoice number (e.g., INV-12345)
-- invoice_date: Invoice date in dd/mm/yyyy format
-- due_date: Due date if available, in dd/mm/yyyy
-- amount: Total amount due (numeric only)
-- reference: PO/Contract number if available
-
-Return your answer strictly as a single JSON object with these keys.
-If any field is not found, set it to null.
-
-Input PDF Text:
-"""
-
 def ai_extract_invoice_fields(pdf_text, supplier_name, company_name):
     prompt = INVOICE_FIELDS_PROMPT + pdf_text.strip()[:4000]  # Keep token length safe
 
@@ -52,12 +26,17 @@ def ai_extract_invoice_fields(pdf_text, supplier_name, company_name):
         reply = response.choices[0].message.content.strip()
         st.text_area("🤖 Raw AI Response", reply, height=150)
 
-        # Try to clean markdown-wrapped JSON (```json ... ``` or ``` ... ```)
+        # Remove code block markers if any
         cleaned = re.sub(r"^```(?:json)?|```$", "", reply.strip(), flags=re.IGNORECASE | re.MULTILINE).strip()
 
-        # Extract first valid JSON block using regex (fallback)
-        match = re.search(r"{.*}", cleaned, re.DOTALL)
-        json_str = match.group(0) if match else cleaned
+        # Attempt to extract a JSON object using regex
+        match = re.search(r"{[^{}]+}", cleaned, re.DOTALL)
+        if not match:
+            st.warning("⚠️ No valid JSON object found in the AI response.")
+            raise ValueError("No valid JSON structure detected.")
+
+        json_str = match.group(0)
+        st.code(json_str, language="json")
 
         result = json.loads(json_str)
 
