@@ -142,9 +142,11 @@ elif authentication_status:
     
     if tab == "📤 Upload Invoices":
         st.title("📤 Upload Invoices or SOA")
-        use_ai = st.toggle("🤖 Use AI Fallback if No Extractor Found", value=False)
-    
+            
         is_invoice = st.checkbox("Processing Invoices", value=True)
+        use_ai = False
+        if is_invoice:
+            use_ai = st.toggle("🤖 Use AI fallback if extractor not found", value=False)
     
         supplier_options = [""] + get_dropdown_values("name", "supplier_names")
         company_options = [""] + get_dropdown_values("name", "company_names")
@@ -160,7 +162,7 @@ elif authentication_status:
             else:
                 extracted_rows = []
                 for file in uploaded_files:
-                    extracted_data = extract_invoice_data_from_pdf(file, supplier_name, company_name, is_invoice, use_ai)
+                    extracted_data = extract_invoice_data_from_pdf(file, supplier_name, company_name, is_invoice, use_ai=use_ai)
                     extracted_list = extracted_data if isinstance(extracted_data, list) else [extracted_data]
                     # st.write("🔍 Extracted Data Type:", type(extracted_data))
                     # st.write("🔍 Raw Extractor Output:", extracted_data)
