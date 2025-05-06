@@ -121,7 +121,7 @@ elif authentication_status:
         "📊 Dashboard",
         "⚙️ Manage Master Tables"   # ⬅️ Add this here
     ])
-    st.sidebar.write(f"✅ Selected Tab: `{tab}`")
+    st.write(f"📍 Tab selected: {tab}")
 
 
     
