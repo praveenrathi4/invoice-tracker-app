@@ -115,12 +115,14 @@ elif authentication_status:
     
     st.sidebar.title("🧭 Navigation")
     tab = st.sidebar.radio("Go to", [
-        "📊 Dashboard",               # 🔹 Add this line
         "📤 Upload Invoices",
         "📋 Outstanding Invoices",
         "✅ Mark as Paid",
-        "📁 Paid History"
+        "📁 Paid History",
+        "📊 Dashboard",
+        "⚙️ Manage Master Tables"   # ⬅️ Add this here
     ])
+
 
     
     if tab == "📊 Dashboard":
@@ -462,3 +464,43 @@ elif authentication_status:
                 invoice_ids = selected["invoice_no"].tolist()
                 update_invoice_paid_fields(invoice_ids, None, None, None, status="Unpaid")
                 st.success(f"🔁 {len(invoice_ids)} invoices marked as Unpaid. Please refresh the page.")
+
+
+    elif tab == "⚙️ Manage Master Tables":
+        st.title("⚙️ Manage Master Tables")
+    
+        table_type = st.radio("Select Table to Manage", ["supplier_names", "paid_sources"])
+    
+        # 🔄 Fetch current table
+        def fetch_table(table):
+            url = f"{SUPABASE_URL}/rest/v1/{table}?select=*"
+            res = requests.get(url, headers=supabase_headers())
+            return pd.DataFrame(res.json()) if res.status_code == 200 else pd.DataFrame()
+    
+        df = fetch_table(table_type)
+    
+        # 🆕 Add new entry
+        st.subheader(f"➕ Add New to `{table_type}`")
+        new_name = st.text_input(f"Enter New {table_type[:-1].replace('_', ' ').title()}")
+    
+        if st.button("✅ Add"):
+            if new_name:
+                response = requests.post(
+                    f"{SUPABASE_URL}/rest/v1/{table_type}",
+                    json={"name": new_name},
+                    headers={**supabase_headers(), "Prefer": "return=representation"}
+                )
+                if response.status_code in [200, 201]:
+                    st.success(f"✅ Added '{new_name}' to {table_type}")
+                    st.rerun()
+                else:
+                    st.error(f"❌ Failed to add. Status: {response.status_code}")
+            else:
+                st.warning("Please enter a name.")
+    
+        # 📋 Display
+        st.subheader("📋 Current Entries")
+        if not df.empty:
+            st.dataframe(df)
+        else:
+            st.info("No records found.")
