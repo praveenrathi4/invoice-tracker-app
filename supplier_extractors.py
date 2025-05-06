@@ -14,6 +14,42 @@ def format_date(date_str, formats=["%d/%m/%Y", "%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y
     return date_str
 
 
+# ---------------------- Extractor Functions ----------------------
+
+def extract_over_foods_invoice(pdf_path, supplier_name, company_name):
+    with pdfplumber.open(pdf_path) as pdf:
+        text = "\n".join(page.extract_text() for page in pdf.pages if page.extract_text())
+
+    def extract_field(pattern, text, date=False):
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            value = match.group(1).strip()
+            if date:
+                try:
+                    return datetime.strptime(value, "%d %b %Y").strftime("%d/%m/%Y")
+                except:
+                    return None
+            return value
+        return None
+
+    invoice_no = extract_field(r"Tax Invoice No:\s*(SINV\s*\d+-\d+)", text)
+    invoice_date = extract_field(r"Invoice Date:\s*(\d{1,2} \w+ \d{4})", text, date=True)
+    due_date = extract_field(r"Due Date:\s*(\d{1,2} \w+ \d{4})", text, date=True)
+    amount = extract_field(r"Total\s*:\s*([\d.]+)", text)
+    reference = extract_field(r"PO No:\s*(\d+)", text)
+
+    return {
+        "supplier_name": supplier_name,
+        "company_name": company_name,
+        "invoice_no": invoice_no,
+        "invoice_date": invoice_date,
+        "due_date": due_date,
+        "amount": amount,
+        "reference": reference
+    }
+
+
+
 def extract_gourmet_perfect_soa(pdf_path, supplier_name, company_name):
     import pdfplumber
     import re
@@ -348,6 +384,8 @@ SUPPLIER_EXTRACTORS = {
     ("Mr Popiah Pte Ltd", True): extract_mr_popiah_soa,
     ("Double Chin Food Services Pte Ltd", True): extract_double_chin_soa,
     ("Gourmet Perfect Pte Ltd", True): extract_gourmet_perfect_soa,
+    ("Over Foods Pte Ltd", False): extract_over_foods_invoice,
+
     # Add more (supplier_name, is_soa): extractor_function
 }
 
