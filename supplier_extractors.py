@@ -479,7 +479,7 @@ SUPPLIER_EXTRACTORS = {
     ("Gourmet Perfect", True): extract_gourmet_perfect_soa,
     ("Over Foods", False): extract_over_foods_invoice,
     ("Gan Teck Kar Investments", False): extract_gan_teck_invoice,
-    ("1800 NO PESTS", False): extract_1800nopests_invoice,
+    ("1800 NO PESTS", False): extract_nopests_invoice,
 
 
     # Add more (supplier_name, is_soa): extractor_function
