@@ -3,6 +3,7 @@ import openai
 import os
 import streamlit as st
 import json
+import re
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
@@ -40,7 +41,7 @@ def ai_extract_invoice_fields(pdf_text, supplier_name, company_name):
                     max_tokens=300
                 )
                 st.info(f"✅ Extraction succeeded with {model}")
-                break  # If successful, exit loop
+                break
             except Exception as inner_e:
                 st.warning(f"❌ {model} failed: {inner_e}")
                 continue
@@ -49,9 +50,17 @@ def ai_extract_invoice_fields(pdf_text, supplier_name, company_name):
             raise Exception("No available model succeeded.")
 
         reply = response.choices[0].message.content.strip()
-        result = json.loads(reply)
+        st.text_area("🤖 Raw AI Response", reply, height=150)
 
-        # Ensure final structure
+        # Try to clean markdown-wrapped JSON (```json ... ``` or ``` ... ```)
+        cleaned = re.sub(r"^```(?:json)?|```$", "", reply.strip(), flags=re.IGNORECASE | re.MULTILINE).strip()
+
+        # Extract first valid JSON block using regex (fallback)
+        match = re.search(r"{.*}", cleaned, re.DOTALL)
+        json_str = match.group(0) if match else cleaned
+
+        result = json.loads(json_str)
+
         return {
             "supplier_name": supplier_name,
             "company_name": company_name,
