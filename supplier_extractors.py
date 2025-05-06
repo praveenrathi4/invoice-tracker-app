@@ -16,6 +16,55 @@ def format_date(date_str, formats=["%d/%m/%Y", "%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y
 
 # ---------------------- Extractor Functions ----------------------
 
+def extract_gan_teck_invoice(pdf_path, supplier_name, company_name):
+    import pdfplumber
+    import re
+
+    with pdfplumber.open(pdf_path) as pdf:
+        text = "\n".join([page.extract_text() for page in pdf.pages if page.extract_text()])
+
+    invoice_no = None
+    invoice_date = None
+    due_date = None
+    amount = None
+    reference = None
+
+    # Extract Invoice No
+    match = re.search(r"INVOICE ID\s+(SXI\.SG\d+)", text)
+    if match:
+        invoice_no = match.group(1)
+
+    # Extract Invoice Date
+    match = re.search(r"DATE\s+(\d{1,2}/\d{1,2}/\d{4})", text)
+    if match:
+        invoice_date = match.group(1)
+
+    # Extract PO ID (Reference)
+    match = re.search(r"PO ID\s+(#[\d]+)", text)
+    if match:
+        reference = match.group(1)
+
+    # Extract Total Amount
+    match = re.search(r"TOTAL\s+S\$\s*([\d.,]+)", text)
+    if match:
+        amount = match.group(1).replace(",", "")
+
+    # Handle Due Date based on Terms
+    if "TERMS: CASH" in text.upper() and invoice_date:
+        due_date = invoice_date  # Set due date same as invoice date
+
+    return {
+        "supplier_name": supplier_name,
+        "company_name": company_name,
+        "invoice_no": invoice_no,
+        "invoice_date": invoice_date,
+        "due_date": due_date,
+        "amount": amount,
+        "reference": reference
+    }
+
+
+
 def extract_over_foods_invoice(pdf_path, supplier_name, company_name):
     with pdfplumber.open(pdf_path) as pdf:
         text = "\n".join(page.extract_text() for page in pdf.pages if page.extract_text())
@@ -385,6 +434,7 @@ SUPPLIER_EXTRACTORS = {
     ("Double Chin Food Services Pte Ltd", True): extract_double_chin_soa,
     ("Gourmet Perfect Pte Ltd", True): extract_gourmet_perfect_soa,
     ("Over Foods Pte Ltd", False): extract_over_foods_invoice,
+    ("Gan Teck Kar Investments Pte Ltd", False): extract_gan_teck_invoice,
 
     # Add more (supplier_name, is_soa): extractor_function
 }
