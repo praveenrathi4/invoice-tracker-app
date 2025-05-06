@@ -74,7 +74,8 @@ elif authentication_status:
             return 500, {"error": str(e)}
     
     
-    def extract_invoice_data_from_pdf(file, supplier_name, company_name, is_invoice=True):
+    def extract_invoice_data_from_pdf(file, supplier_name, company_name, is_invoice=True, use_ai=False):
+    
         with pdfplumber.open(file) as pdf:
             text = "\n".join(page.extract_text() for page in pdf.pages if page.extract_text())
     
@@ -88,9 +89,20 @@ elif authentication_status:
                 st.info(f"📌 Matched Supplier Extractor: {matched_supplier} ({'SOA' if is_soa else 'Invoice'})")
                 return extractor(file, supplier_name, company_name)
     
-        # 🤖 Use AI fallback for unmatched suppliers
-        st.warning("🤖 No extractor found. Trying AI-powered fallback...")
-        return ai_extract_invoice_fields(text, supplier_name, company_name)
+        if use_ai:
+            st.warning("🤖 No extractor found. Trying AI-powered fallback...")
+            return ai_extract_invoice_fields(text, supplier_name, company_name)
+        else:
+            st.warning("⚠️ No matching extractor found and AI fallback is disabled.")
+            return {
+                "supplier_name": supplier_name,
+                "company_name": company_name,
+                "invoice_no": None,
+                "invoice_date": None,
+                "due_date": None,
+                "amount": None,
+                "reference": None
+            }
 
     
     def get_invoices_by_status(status):
@@ -131,6 +143,7 @@ elif authentication_status:
     
     if tab == "📤 Upload Invoices":
         st.title("📤 Upload Invoices or SOA")
+        use_ai = st.toggle("🤖 Use AI Fallback if No Extractor Found", value=False)
     
         is_invoice = st.checkbox("Processing Invoices", value=True)
     
@@ -148,7 +161,7 @@ elif authentication_status:
             else:
                 extracted_rows = []
                 for file in uploaded_files:
-                    extracted_data = extract_invoice_data_from_pdf(file, supplier_name, company_name, is_invoice)
+                    extracted_data = extract_invoice_data_from_pdf(file, supplier_name, company_name, is_invoice, use_ai)
                     extracted_list = extracted_data if isinstance(extracted_data, list) else [extracted_data]
                     # st.write("🔍 Extracted Data Type:", type(extracted_data))
                     # st.write("🔍 Raw Extractor Output:", extracted_data)
