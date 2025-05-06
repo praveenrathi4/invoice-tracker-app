@@ -483,11 +483,20 @@ elif authentication_status:
         st.subheader(f"➕ Add New to `{table_type}`")
         new_name = st.text_input(f"Enter New {table_type[:-1].replace('_', ' ').title()}")
     
+        # Only for supplier_names table, show category input
+        new_category = ""
+        if table_type == "supplier_names":
+            new_category = st.text_input("Enter Category (Optional)")
+    
         if st.button("✅ Add"):
             if new_name:
+                payload = {"name": new_name}
+                if table_type == "supplier_names" and new_category:
+                    payload["category"] = new_category
+    
                 response = requests.post(
                     f"{SUPABASE_URL}/rest/v1/{table_type}",
-                    json={"name": new_name},
+                    json=payload,
                     headers={**supabase_headers(), "Prefer": "return=representation"}
                 )
                 if response.status_code in [200, 201]:
@@ -498,9 +507,28 @@ elif authentication_status:
             else:
                 st.warning("Please enter a name.")
     
-        # 📋 Display
+        # 📋 Display with delete option
         st.subheader("📋 Current Entries")
         if not df.empty:
-            st.dataframe(df)
+            # Only show 'category' if it exists
+            display_cols = ["name"]
+            if table_type == "supplier_names" and "category" in df.columns:
+                display_cols.append("category")
+    
+            df_display = df[display_cols].copy()
+            df_display["🗑️ Delete"] = False
+    
+            edited = st.data_editor(df_display, key="editor", use_container_width=True, num_rows="dynamic")
+    
+            # Find rows marked for deletion
+            to_delete = edited[edited["🗑️ Delete"] == True]
+    
+            if not to_delete.empty and st.button("🗑️ Confirm Delete Selected"):
+                for _, row in to_delete.iterrows():
+                    delete_name = row["name"]
+                    delete_url = f"{SUPABASE_URL}/rest/v1/{table_type}?name=eq.{delete_name}"
+                    res = requests.delete(delete_url, headers=supabase_headers())
+                st.success(f"🗑️ Deleted {len(to_delete)} entries.")
+                st.rerun()
         else:
             st.info("No records found.")
