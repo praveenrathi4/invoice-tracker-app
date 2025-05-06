@@ -27,8 +27,7 @@ elif authentication_status is None:
 elif authentication_status:
     authenticator.logout("Logout", "sidebar")
     st.sidebar.success(f"Welcome {name}!")
-    # 🔓 Place your entire app here (all tab logic, etc.)
-    import streamlit as st
+    # 🔓 Place your entire app here (all tab logic, etc.)    
     import pdfplumber
     import requests
     import re
@@ -122,6 +121,7 @@ elif authentication_status:
         "📊 Dashboard",
         "⚙️ Manage Master Tables"   # ⬅️ Add this here
     ])
+    st.sidebar.write(f"✅ Selected Tab: `{tab}`")
 
 
     
