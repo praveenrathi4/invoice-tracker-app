@@ -426,15 +426,15 @@ def extract_mr_popiah_soa(pdf_path, supplier_name, company_name):
 # ---------------------- Extractor Mapping ----------------------
 
 SUPPLIER_EXTRACTORS = {
-    ("Sourdough Factory LLP", False): extract_sourdough_invoice,
-    ("Fu Luxe Pte. Ltd.", False): extract_fu_luxe_invoice,
-    ("Air Liquide Singapore Pte Ltd", False): extract_air_liquide_invoice,
+    ("Sourdough Factory", False): extract_sourdough_invoice,
+    ("Fuluxe", False): extract_fu_luxe_invoice,
+    ("Air Liquide Singapore", False): extract_air_liquide_invoice,
     ("Classic Fine Foods", True): extract_classic_fine_foods_soa,
-    ("Mr Popiah Pte Ltd", True): extract_mr_popiah_soa,
-    ("Double Chin Food Services Pte Ltd", True): extract_double_chin_soa,
-    ("Gourmet Perfect Pte Ltd", True): extract_gourmet_perfect_soa,
-    ("Over Foods Pte Ltd", False): extract_over_foods_invoice,
-    ("Gan Teck Kar Investments Pte Ltd", False): extract_gan_teck_invoice,
+    ("Mr Popiah", True): extract_mr_popiah_soa,
+    ("Double Chin Food", True): extract_double_chin_soa,
+    ("Gourmet Perfect", True): extract_gourmet_perfect_soa,
+    ("Over Foods", False): extract_over_foods_invoice,
+    ("Gan Teck Kar Investments", False): extract_gan_teck_invoice,
 
     # Add more (supplier_name, is_soa): extractor_function
 }
