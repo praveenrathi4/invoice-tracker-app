@@ -75,34 +75,33 @@ elif authentication_status:
     
     
     def extract_invoice_data_from_pdf(file, supplier_name, company_name, is_invoice=True, use_ai=False):
-    
         with pdfplumber.open(file) as pdf:
             text = "\n".join(page.extract_text() for page in pdf.pages if page.extract_text())
     
         is_soa = not is_invoice
-        matched_supplier = get_best_supplier_match(text, [key[0] for key in SUPPLIER_EXTRACTORS.keys()])
+        key = (supplier_name, is_soa)
+        extractor = SUPPLIER_EXTRACTORS.get(key)
     
-        if matched_supplier:
-            key = (matched_supplier, is_soa)
-            extractor = SUPPLIER_EXTRACTORS.get(key)
-            if extractor:
-                st.info(f"📌 Matched Supplier Extractor: {matched_supplier} ({'SOA' if is_soa else 'Invoice'})")
-                return extractor(file, supplier_name, company_name)
+        if extractor:
+            st.info(f"📌 Extractor found for: {supplier_name} ({'SOA' if is_soa else 'Invoice'})")
+            return extractor(file, supplier_name, company_name)
     
-        if use_ai:
-            st.warning("🤖 No extractor found. Trying AI-powered fallback...")
+        st.warning(f"⚠️ No extractor available for {supplier_name} ({'SOA' if is_soa else 'Invoice'})")
+    
+        if use_ai and is_invoice:
+            st.info("🤖 Attempting AI-powered extraction (only for invoices)...")
             return ai_extract_invoice_fields(text, supplier_name, company_name)
-        else:
-            st.warning("⚠️ No matching extractor found and AI fallback is disabled.")
-            return {
-                "supplier_name": supplier_name,
-                "company_name": company_name,
-                "invoice_no": None,
-                "invoice_date": None,
-                "due_date": None,
-                "amount": None,
-                "reference": None
-            }
+    
+        # Fallback default
+        return {
+            "supplier_name": supplier_name,
+            "company_name": company_name,
+            "invoice_no": None,
+            "invoice_date": None,
+            "due_date": None,
+            "amount": None,
+            "reference": None
+        }
 
     
     def get_invoices_by_status(status):
