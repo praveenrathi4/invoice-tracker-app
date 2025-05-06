@@ -50,7 +50,7 @@ def extract_gan_teck_invoice(pdf_path, supplier_name, company_name):
         amount = match.group(1).replace(",", "")
 
     # Handle Due Date based on Terms
-    if "TERMS: CASH" in text.upper() and invoice_date:
+    if "TERMS CASH" in text.upper() and invoice_date:
         due_date = invoice_date  # Set due date same as invoice date
 
     return {
