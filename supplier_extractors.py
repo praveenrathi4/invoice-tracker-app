@@ -16,9 +16,36 @@ def format_date(date_str, formats=["%d/%m/%Y", "%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y
 
 # ---------------------- Extractor Functions ----------------------
 
+def extract_1800nopests_invoice(pdf_path, supplier_name, company_name):
+
+    def parse_date(text):
+        try:
+            return datetime.strptime(text.strip(), "%d %b %Y").strftime("%d/%m/%Y")
+        except:
+            return None
+
+    with pdfplumber.open(pdf_path) as pdf:
+        text = "\n".join(p.extract_text() for p in pdf.pages if p.extract_text())
+
+    invoice_no = re.search(r"Invoice Number\s*[:\-]?\s*(\S+)", text)
+    invoice_date = re.search(r"Invoice Date\s*[:\-]?\s*(\d{1,2} \w{3} \d{4})", text)
+    due_date = re.search(r"Due Date\s*[:\-]?\s*(\d{1,2} \w{3} \d{4})", text)
+    amount = re.search(r"TOTAL SGD\s*([\d,.]+)", text)
+    reference = re.search(r"Customer\s*(.*?)\n", text)
+
+    return [{
+        "supplier_name": supplier_name,
+        "company_name": company_name,
+        "invoice_no": invoice_no.group(1) if invoice_no else None,
+        "invoice_date": parse_date(invoice_date.group(1)) if invoice_date else None,
+        "due_date": parse_date(due_date.group(1)) if due_date else None,
+        "amount": float(amount.group(1).replace(",", "")) if amount else None,
+        "reference": reference.group(1).strip() if reference else None
+    }]
+
+
+
 def extract_gan_teck_invoice(pdf_path, supplier_name, company_name):
-    import pdfplumber
-    import re
 
     with pdfplumber.open(pdf_path) as pdf:
         text = "\n".join([page.extract_text() for page in pdf.pages if page.extract_text()])
@@ -435,6 +462,8 @@ SUPPLIER_EXTRACTORS = {
     ("Gourmet Perfect", True): extract_gourmet_perfect_soa,
     ("Over Foods", False): extract_over_foods_invoice,
     ("Gan Teck Kar Investments", False): extract_gan_teck_invoice,
+    ("1800 NO PESTS", False): extract_1800nopests_invoice,
+
 
     # Add more (supplier_name, is_soa): extractor_function
 }
