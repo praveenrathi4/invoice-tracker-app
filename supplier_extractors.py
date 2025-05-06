@@ -16,51 +16,35 @@ def format_date(date_str, formats=["%d/%m/%Y", "%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y
 
 # ---------------------- Extractor Functions ----------------------
 
-import pdfplumber
-import re
+def extract_nopests_invoice(pdf_path, supplier_name, company_name):
 
-def extract_1800nopests_invoice(pdf_path, supplier_name, company_name):
     with pdfplumber.open(pdf_path) as pdf:
-        text = "\n".join([page.extract_text() for page in pdf.pages if page.extract_text()])
+        text = "\n".join(page.extract_text() for page in pdf.pages if page.extract_text())
+
+    def extract_date(pattern_label):
+        match = re.search(rf"{pattern_label}[:\s]*([\d]{{1,2}}[ /-][A-Za-z]{{3,}}[ /-][\d]{{4}})", text, re.IGNORECASE)
+        if match:
+            try:
+                return datetime.strptime(match.group(1), "%d %b %Y").strftime("%d/%m/%Y")
+            except:
+                try:
+                    return datetime.strptime(match.group(1), "%d/%m/%Y").strftime("%d/%m/%Y")
+                except:
+                    return None
+        return None
 
     invoice_no = None
-    invoice_date = None
-    due_date = None
-    amount = None
-    reference = None
-
-    # Extract Invoice Number
-    match = re.search(r"Invoice Number\s+([A-Z]?\d+)", text)
+    match = re.search(r"Invoice Number[:\s]+([A-Z0-9\-]+)", text, re.IGNORECASE)
     if match:
         invoice_no = match.group(1).strip()
 
-    # Extract Invoice Date
-    match = re.search(r"Invoice Date\s+(\d{1,2} \w{3} \d{4})", text)
-    if match:
-        raw_date = match.group(1).strip()
-        try:
-            invoice_date = datetime.strptime(raw_date, "%d %b %Y").strftime("%d/%m/%Y")
-        except:
-            pass
+    invoice_date = extract_date("Invoice Date")
+    due_date = extract_date("Due Date")
 
-    # Extract Due Date
-    match = re.search(r"Due Date\s*[:\-]?\s*(\d{1,2} \w{3} \d{4})", text)
+    amount = None
+    match = re.search(r"TOTAL\s+SGD\s+([\d,]+\.\d{2})", text, re.IGNORECASE)
     if match:
-        raw_due = match.group(1).strip()
-        try:
-            due_date = datetime.strptime(raw_due, "%d %b %Y").strftime("%d/%m/%Y")
-        except:
-            pass
-    else:
-        due_date = invoice_date  # fallback if not found
-
-    # Extract Amount
-    match = re.search(r"TOTAL SGD\s*([\d.,]+)", text)
-    if match:
-        try:
-            amount = float(match.group(1).replace(",", ""))
-        except:
-            pass
+        amount = match.group(1).replace(",", "")
 
     return {
         "supplier_name": supplier_name,
@@ -69,7 +53,7 @@ def extract_1800nopests_invoice(pdf_path, supplier_name, company_name):
         "invoice_date": invoice_date,
         "due_date": due_date,
         "amount": amount,
-        "reference": reference  # no PO or contract found
+        "reference": None
     }
 
 
@@ -491,7 +475,7 @@ SUPPLIER_EXTRACTORS = {
     ("Gourmet Perfect", True): extract_gourmet_perfect_soa,
     ("Over Foods", False): extract_over_foods_invoice,
     ("Gan Teck Kar Investments", False): extract_gan_teck_invoice,
-    ("1800 NO PESTS", False): extract_1800nopests_invoice,
+    ("1800 NO PESTS", False): extract_nopests_invoice,
 
 
     # Add more (supplier_name, is_soa): extractor_function
