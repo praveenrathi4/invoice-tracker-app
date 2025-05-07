@@ -75,6 +75,7 @@ elif authentication_status:
     
     
     def extract_invoice_data_from_pdf(file, supplier_name, company_name, is_invoice=True, use_ai=False):
+        
         with pdfplumber.open(file) as pdf:
             text = "\n".join(page.extract_text() for page in pdf.pages if page.extract_text())
     
@@ -83,16 +84,14 @@ elif authentication_status:
         extractor = SUPPLIER_EXTRACTORS.get(key)
     
         if extractor:
-            st.info(f"📌 Extractor found for: {supplier_name} ({'SOA' if is_soa else 'Invoice'})")
+            st.info(f"📌 Using extractor for: {supplier_name} ({'SOA' if is_soa else 'Invoice'})")
             return extractor(file, supplier_name, company_name)
     
-        st.warning(f"⚠️ No extractor available for {supplier_name} ({'SOA' if is_soa else 'Invoice'})")
-    
-        if use_ai and is_invoice:
-            st.info("🤖 Attempting AI-powered extraction (only for invoices)...")
+        if use_ai and not is_soa:
+            st.warning("🤖 No extractor found. Trying AI-powered fallback...")
             return ai_extract_invoice_fields(text, supplier_name, company_name)
     
-        # Fallback default
+        st.warning("⚠️ No matching extractor found and AI fallback is disabled.")
         return {
             "supplier_name": supplier_name,
             "company_name": company_name,
@@ -102,6 +101,7 @@ elif authentication_status:
             "amount": None,
             "reference": None
         }
+
 
     
     def get_invoices_by_status(status):
