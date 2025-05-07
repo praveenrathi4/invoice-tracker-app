@@ -49,6 +49,15 @@ elif authentication_status:
             "Authorization": f"Bearer {SUPABASE_API_KEY}",
             "Content-Type": "application/json"
         }
+
+    def get_supplier_options(is_invoice):
+        # Filter supplier_names by extractor availability
+        query_field = "has_invoice_extractor" if is_invoice else "has_soa_extractor"
+        url = f"{SUPABASE_URL}/rest/v1/supplier_names?select=name,{query_field}"
+        res = requests.get(url, headers=supabase_headers())
+        if res.status_code == 200:
+            return [row["name"] for row in res.json() if row.get(query_field)]
+        return []
     
     def get_dropdown_values(column, table):
         url = f"{SUPABASE_URL}/rest/v1/{table}?select={column}"
@@ -63,11 +72,7 @@ elif authentication_status:
         headers["Prefer"] = "return=representation"
         try:
             response = requests.post(url, json=data_list, headers=headers)
-            if response.status_code != 201:
-                st.error(f"❌ Supabase Error {response.status_code}:")
-                st.json(response.json())
-                st.warning("📦 Payload sent to Supabase:")
-                st.json(data_list)
+            
             return response.status_code, response.json()
         except Exception as e:
             st.error(f"🔴 Request failed: {str(e)}")
@@ -151,7 +156,7 @@ elif authentication_status:
         if is_invoice:
             use_ai = st.toggle("🤖 Use AI fallback if extractor not found", value=False)
     
-        supplier_options = [""] + get_dropdown_values("name", "supplier_names")
+        supplier_options = [""] + get_supplier_options(is_invoice)
         company_options = [""] + get_dropdown_values("name", "company_names")
     
         supplier_name = st.selectbox("Select Supplier Name", supplier_options, index=0)
@@ -483,34 +488,37 @@ elif authentication_status:
                 st.success(f"🔁 {len(invoice_ids)} invoices marked as Unpaid. Please refresh the page.")
 
 
-    elif tab == "⚙️ Manage Master Tables":
+    if tab == "⚙️ Manage Master Tables":
         st.title("⚙️ Manage Master Tables")
-    
         table_type = st.radio("Select Table to Manage", ["supplier_names", "paid_sources"])
-    
-        # 🔄 Fetch current table
+
         def fetch_table(table):
             url = f"{SUPABASE_URL}/rest/v1/{table}?select=*"
             res = requests.get(url, headers=supabase_headers())
             return pd.DataFrame(res.json()) if res.status_code == 200 else pd.DataFrame()
-    
+
         df = fetch_table(table_type)
-    
-        # 🆕 Add new entry
+
         st.subheader(f"➕ Add New to `{table_type}`")
         new_name = st.text_input(f"Enter New {table_type[:-1].replace('_', ' ').title()}")
-    
-        # Only for supplier_names table, show category input
+
         new_category = ""
+        has_invoice_extractor = False
+        has_soa_extractor = False
+
         if table_type == "supplier_names":
             new_category = st.text_input("Enter Category (Optional)")
-    
+            has_invoice_extractor = st.checkbox("✅ Has Invoice Extractor")
+            has_soa_extractor = st.checkbox("📄 Has SOA Extractor")
+
         if st.button("✅ Add"):
             if new_name:
                 payload = {"name": new_name}
-                if table_type == "supplier_names" and new_category:
+                if table_type == "supplier_names":
                     payload["category"] = new_category
-    
+                    payload["has_invoice_extractor"] = has_invoice_extractor
+                    payload["has_soa_extractor"] = has_soa_extractor
+
                 response = requests.post(
                     f"{SUPABASE_URL}/rest/v1/{table_type}",
                     json=payload,
@@ -523,23 +531,15 @@ elif authentication_status:
                     st.error(f"❌ Failed to add. Status: {response.status_code}")
             else:
                 st.warning("Please enter a name.")
-    
+
         # 📋 Display with delete option
         st.subheader("📋 Current Entries")
         if not df.empty:
-            # Only show 'category' if it exists
-            display_cols = ["name"]
-            if table_type == "supplier_names" and "category" in df.columns:
-                display_cols.append("category")
-    
-            df_display = df[display_cols].copy()
+            df_display = df.copy()
             df_display["🗑️ Delete"] = False
-    
             edited = st.data_editor(df_display, key="editor", use_container_width=True, num_rows="dynamic")
-    
-            # Find rows marked for deletion
             to_delete = edited[edited["🗑️ Delete"] == True]
-    
+
             if not to_delete.empty and st.button("🗑️ Confirm Delete Selected"):
                 for _, row in to_delete.iterrows():
                     delete_name = row["name"]
