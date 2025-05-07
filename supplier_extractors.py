@@ -16,6 +16,53 @@ def format_date(date_str, formats=["%d/%m/%Y", "%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y
 
 # ---------------------- Extractor Functions ----------------------
 
+def extract_nopests_soa(pdf_path, supplier_name, company_name):
+    import pdfplumber
+    import re
+    from datetime import datetime
+
+    rows = []
+
+    def parse_date(date_str):
+        try:
+            return datetime.strptime(date_str.strip(), "%d%b%Y").strftime("%d/%m/%Y")
+        except:
+            return None
+
+    with pdfplumber.open(pdf_path) as pdf:
+        for page in pdf.pages:
+            text = page.extract_text()
+            if not text:
+                continue
+            lines = text.split('\n')
+
+            for line in lines:
+                if re.search(r"\bInvoice\s+#\s+I\d+", line):
+                    parts = line.split()
+                    try:
+                        invoice_date = parse_date(parts[0])
+                        invoice_no_index = parts.index("Invoice") + 2
+                        invoice_no = parts[invoice_no_index]
+                        due_date = parse_date(parts[invoice_no_index + 1])
+                        amount = float(parts[invoice_no_index + 2].replace(",", ""))
+                    except:
+                        continue
+
+                    rows.append({
+                        "supplier_name": supplier_name,
+                        "company_name": company_name,
+                        "invoice_no": invoice_no,
+                        "invoice_date": invoice_date,
+                        "due_date": due_date,
+                        "amount": amount,
+                        "reference": None
+                    })
+
+    return rows
+
+
+
+
 def extract_nopests_invoice(pdf_path, supplier_name, company_name):
     
     with pdfplumber.open(pdf_path) as pdf:
@@ -497,6 +544,7 @@ SUPPLIER_EXTRACTORS = {
     ("Over Foods", False): extract_over_foods_invoice,
     ("Gan Teck Kar Investments", False): extract_gan_teck_invoice,
     ("1800 NO PESTS", False): extract_nopests_invoice,
+    ("1800 NO PESTS", True): extract_nopests_soa,
 
 
     # Add more (supplier_name, is_soa): extractor_function
