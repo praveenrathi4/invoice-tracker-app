@@ -17,34 +17,39 @@ def format_date(date_str, formats=["%d/%m/%Y", "%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y
 # ---------------------- Extractor Functions ----------------------
 
 def extract_nopests_invoice(pdf_path, supplier_name, company_name):
+    
     with pdfplumber.open(pdf_path) as pdf:
         lines = []
+        text = ""
         for page in pdf.pages:
-            if page.extract_text():
-                lines += page.extract_text().split("\n")
+            t = page.extract_text()
+            if t:
+                lines += t.split("\n")
+                text += t + "\n"
 
     invoice_no = None
     invoice_date = None
     due_date = None
     amount = None
 
-    for i, line in enumerate(lines):
-        if "InvoiceNumber" in line:
-            # Next line has invoice_no
-            if i + 1 < len(lines):
-                match = re.search(r"\b([A-Z]\d{7,})\b", lines[i + 1])
-                if match:
-                    invoice_no = match.group(1)
+    # Extract invoice number from full text (more reliable)
+    match = re.search(r"InvoiceNumber\s+([A-Z]\d+)", text)
+    if match:
+        invoice_no = match.group(1)
 
+    # Extract invoice date from line following "InvoiceDate"
+    for i, line in enumerate(lines):
         if "InvoiceDate" in line:
-            # Next line has invoice_date
             if i + 1 < len(lines):
                 raw = lines[i + 1].strip()
                 try:
                     invoice_date = datetime.strptime(raw, "%d%b%Y").strftime("%d/%m/%Y")
                 except:
                     pass
+            break
 
+    # Extract due date from line containing "DueDate"
+    for line in lines:
         if "DueDate" in line:
             match = re.search(r"(\d{1,2}[A-Za-z]{3}\d{4})", line)
             if match:
@@ -52,11 +57,15 @@ def extract_nopests_invoice(pdf_path, supplier_name, company_name):
                     due_date = datetime.strptime(match.group(1), "%d%b%Y").strftime("%d/%m/%Y")
                 except:
                     pass
+            break
 
+    # Extract amount from "TOTALSGD"
+    for line in lines:
         if "TOTALSGD" in line:
             match = re.search(r"TOTALSGD\s+([\d.]+)", line)
             if match:
                 amount = match.group(1)
+            break
 
     return {
         "supplier_name": supplier_name,
