@@ -81,6 +81,9 @@ elif authentication_status:
     
         is_soa = not is_invoice
         key = (supplier_name, is_soa)
+        print("🔍 Looking for key in extractor map:", key)
+        print("📦 Available keys:", list(SUPPLIER_EXTRACTORS.keys()))
+
         extractor = SUPPLIER_EXTRACTORS.get(key)
     
         if extractor:
