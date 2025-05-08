@@ -150,20 +150,17 @@ elif authentication_status:
     
     if tab == "📤 Upload Invoices":
         st.title("📤 Upload Invoices or SOA")
-            
         is_invoice = st.checkbox("Processing Invoices", value=True)
-        use_ai = False
-        if is_invoice:
-            use_ai = st.toggle("🤖 Use AI fallback if extractor not found", value=False)
-    
+        use_ai = st.toggle("🤖 Use AI fallback if extractor not found", value=False) if is_invoice else False
+
         supplier_options = [""] + get_supplier_options(is_invoice)
         company_options = [""] + get_dropdown_values("name", "company_names")
-    
+
         supplier_name = st.selectbox("Select Supplier Name", supplier_options, index=0)
         company_name = st.selectbox("Select Company Name", company_options, index=0)
-    
+
         uploaded_files = st.file_uploader("Upload PDF files", type=["pdf"], accept_multiple_files=True)
-    
+
         if uploaded_files:
             if not supplier_name or not company_name:
                 st.warning("Please select both Supplier Name and Company Name before processing.")
@@ -172,9 +169,7 @@ elif authentication_status:
                 for file in uploaded_files:
                     extracted_data = extract_invoice_data_from_pdf(file, supplier_name, company_name, is_invoice, use_ai=use_ai)
                     extracted_list = extracted_data if isinstance(extracted_data, list) else [extracted_data]
-                    # st.write("🔍 Extracted Data Type:", type(extracted_data))
-                    # st.write("🔍 Raw Extractor Output:", extracted_data)
-    
+
                     for row in extracted_list:
                         for date_field in ["invoice_date", "due_date"]:
                             try:
@@ -188,58 +183,69 @@ elif authentication_status:
                             row["amount"] = None
                         row["status"] = "Unpaid"
                         extracted_rows.append(row)
-    
+
                 if extracted_rows:
-                    st.subheader("🔍 Raw Extracted Rows (Before Validation)")
-                    st.dataframe(pd.DataFrame(extracted_rows))
+                    st.subheader("✏️ Raw Extracted Rows (Editable Before Validation)")
+                    raw_df = pd.DataFrame(extracted_rows)
+
+                    edited_df = st.data_editor(
+                        raw_df,
+                        use_container_width=True,
+                        hide_index=True,
+                        key="raw_editor",
+                        num_rows="dynamic"
+                    )
+
+                    for col in ["invoice_date", "due_date"]:
+                        if col in edited_df.columns:
+                            edited_df[col] = pd.to_datetime(edited_df[col], errors="coerce").dt.strftime("%Y-%m-%d")
+
+                    if "amount" in edited_df.columns:
+                        edited_df["amount"] = pd.to_numeric(edited_df["amount"], errors="coerce")
+
+                    edited_df["status"] = "Unpaid"
+                    required_fields = ["invoice_no", "invoice_date", "amount"]
+                    valid_df = edited_df.dropna(subset=required_fields)
+
+                    if not valid_df.empty:
+                        response = requests.get(
+                            f"{SUPABASE_URL}/rest/v1/invoices?select=invoice_no,invoice_date",
+                            headers=supabase_headers()
+                        )
+                        existing_keys = set()
+                        if response.status_code == 200:
+                            existing_data = response.json()
+                            existing_keys = {
+                                (item["invoice_no"], item["invoice_date"])
+                                for item in existing_data if item.get("invoice_no") and item.get("invoice_date")
+                            }
+
+                        valid_df["invoice_date"] = pd.to_datetime(valid_df["invoice_date"], errors="coerce").dt.strftime("%Y-%m-%d")
+                        valid_df["is_duplicate"] = valid_df.apply(
+                            lambda r: (r["invoice_no"], r["invoice_date"]) in existing_keys, axis=1
+                        )
+
+                        unique_df = valid_df[~valid_df["is_duplicate"]].drop(columns=["is_duplicate"])
+                        duplicates_df = valid_df[valid_df["is_duplicate"]].drop(columns=["is_duplicate"])
+
+                        st.subheader("🧾 Valid Extracted Invoices (New Only)")
+                        st.dataframe(unique_df)
+
+                        if not unique_df.empty and st.button("✅ Save to Supabase"):
+                            status_code, response = insert_batch_to_supabase(unique_df.to_dict(orient="records"))
+                            if status_code == 201:
+                                st.success("✅ Data saved to Supabase.")
+                                if not duplicates_df.empty:
+                                    dup_invoices = ", ".join(duplicates_df['invoice_no'].astype(str).unique())
+                                    st.warning(f"⚠️ Skipped {len(duplicates_df)} duplicate invoice(s): {dup_invoices}")
+                            else:
+                                st.error("❌ Failed to insert records.")
+                        elif unique_df.empty:
+                            st.info("📌 All uploaded invoices already exist. No new records to save.")
+                    else:
+                        st.info("⚠️ Please complete missing required fields before saving.")
                 else:
                     st.info("🕵️ No rows were extracted from the uploaded PDFs.")
-                    
-                required_fields = ["invoice_no", "invoice_date", "amount"]
-                valid_rows = [r for r in extracted_rows if all(r.get(f) not in [None, ""] for f in required_fields)]
-    
-                if valid_rows:
-                    # ✅ Step 1: Fetch existing invoice_no + invoice_date from Supabase
-                    response = requests.get(
-                        f"{SUPABASE_URL}/rest/v1/invoices?select=invoice_no,invoice_date",
-                        headers=supabase_headers()
-                    )
-                    existing_keys = set()
-                    if response.status_code == 200:
-                        existing_data = response.json()
-                        existing_keys = {
-                            (item["invoice_no"], item["invoice_date"])
-                            for item in existing_data if item.get("invoice_no") and item.get("invoice_date")
-                        }
-                    
-                    # ✅ Step 2: Normalize and detect duplicates
-                    df_all = pd.DataFrame(valid_rows)
-                    df_all["invoice_date"] = pd.to_datetime(df_all["invoice_date"], errors="coerce").dt.strftime("%Y-%m-%d")
-                    
-                    df_all["is_duplicate"] = df_all.apply(
-                        lambda r: (r["invoice_no"], r["invoice_date"]) in existing_keys, axis=1
-                    )
-                    
-                    unique_df = df_all[~df_all["is_duplicate"]].drop(columns=["is_duplicate"])
-                    duplicates_df = df_all[df_all["is_duplicate"]].drop(columns=["is_duplicate"])
-                    
-                    # ✅ Step 3: Show and Save
-                    st.subheader("🧾 Valid Extracted Invoices (New Only)")
-                    st.dataframe(unique_df)
-                    
-                    if not unique_df.empty and st.button("✅ Save to Supabase"):
-                        status_code, response = insert_batch_to_supabase(unique_df.to_dict(orient="records"))
-                        if status_code == 201:
-                            st.success("✅ Data saved to Supabase.")
-                            if not duplicates_df.empty:
-                                dup_invoices = ", ".join(duplicates_df['invoice_no'].astype(str).unique())
-                                st.warning(f"⚠️ Skipped {len(duplicates_df)} duplicate invoice(s): {dup_invoices}")
-                        else:
-                            st.error("❌ Failed to insert records.")
-                    elif unique_df.empty:
-                        st.info("📌 All uploaded invoices already exist. No new records to save.")
-                else:
-                    st.info("No valid invoice data to display.")
     
     def filter_and_export(df):
         col1, col2 = st.columns(2)
