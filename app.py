@@ -132,6 +132,8 @@ elif authentication_status:
         return True
     
     st.sidebar.title("🧭 Navigation")
+    if "selected_tab" not in st.session_state:
+        st.session_state["selected_tab"] = "📄 Manual Invoice Entry"
     tab = st.sidebar.radio("Go to", [
         "📤 Upload Invoices",
         "📝 Manual Invoice Entry",
@@ -140,7 +142,15 @@ elif authentication_status:
         "📁 Paid History",
         "📊 Dashboard",
         "⚙️ Manage Master Tables"   # ⬅️ Add this here
-    ])
+    ], index=[
+        "📤 Upload Invoices",
+        "📋 Outstanding Invoices",
+        "✅ Mark as Paid",
+        "📁 Paid History",
+        "📊 Dashboard",
+        "⚙️ Manage Master Tables",
+        "📄 Manual Invoice Entry"
+    ].index(st.session_state["selected_tab"]), key="selected_tab")
     st.write(f"📍 Tab selected: {tab}")
 
 
@@ -628,6 +638,7 @@ elif authentication_status:
                 if status_code == 201:
                     st.success("✅ Invoice saved successfully.")
                     reset_manual_form()
+                    st.session_state["selected_tab"] = "📄 Manual Invoice Entry"
                     st.rerun()
                 else:
                     st.error("❌ Failed to save invoice.")
