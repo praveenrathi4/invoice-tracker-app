@@ -144,7 +144,7 @@ elif authentication_status:
         "⚙️ Manage Master Tables"   # ⬅️ Add this here
     ], index=[
         "📤 Upload Invoices",
-        "📄 Manual Invoice Entry",
+        "📝 Manual Invoice Entry",
         "📋 Outstanding Invoices",
         "✅ Mark as Paid",
         "📁 Paid History",
@@ -568,8 +568,8 @@ elif authentication_status:
             st.info("No records found.")
 
 
-    elif tab == "📄 Manual Invoice Entry":
-        st.title("📄 Manually Add Invoice")
+    elif tab == "📝 Manual Invoice Entry":
+        st.title("📝 Manual Invoice Entry")
     
         # ✅ Initialize session state
         if "manual_supplier" not in st.session_state:
