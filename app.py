@@ -637,7 +637,7 @@ elif authentication_status:
     
                     if res.status_code in [200, 201]:
                         st.success(f"✅ Invoice {invoice_no} saved successfully.")
-                        st.experimental_rerun()  # 🔁 Clears the form completely
+                        st.rerun()  # 🔁 Clears the form completely
                     else:
                         st.error(f"❌ Failed to save invoice. Status: {res.status_code}")
                         st.json(res.json())
