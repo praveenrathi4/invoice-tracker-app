@@ -558,39 +558,42 @@ elif authentication_status:
             st.info("No records found.")
 
 
-    elif tab == "📝 Manual Invoice Entry":
-        st.title("📝 Manually Add Invoice")
+    elif tab == "📄 Manual Invoice Entry":
+        st.title("📄 Manually Add Invoice")
     
-        # --- Clear form on rerun trigger ---
-        if st.session_state.get("clear_manual_form"):
-            st.session_state.clear()
-            st.rerun()
+        # 🔁 Define reset function
+        def reset_manual_form():
+            st.session_state["manual_supplier"] = ""
+            st.session_state["manual_company"] = ""
+            st.session_state["manual_invoice_no"] = ""
+            st.session_state["manual_invoice_date"] = date.today()
+            st.session_state["manual_due_date"] = date.today()
+            st.session_state["manual_amount"] = 0.0
+            st.session_state["manual_reference"] = ""
     
-        # --- Load dropdown values ---
         supplier_options = [""] + get_dropdown_values("name", "supplier_names")
         company_options = [""] + get_dropdown_values("name", "company_names")
     
-        # --- Input Form ---
-        with st.form("manual_invoice_form"):
-            supplier_name = st.selectbox("Select Supplier Name", supplier_options, index=0, key="manual_supplier")
-            company_name = st.selectbox("Select Company Name", company_options, index=0, key="manual_company")
-    
+        with st.form("manual_entry_form"):
             col1, col2 = st.columns(2)
-            invoice_no = col1.text_input("Invoice No", key="manual_invoice_no")
-            invoice_date = col2.date_input("Invoice Date", key="manual_invoice_date")
+            supplier_name = col1.selectbox("Supplier Name*", supplier_options, index=0, key="manual_supplier")
+            company_name = col2.selectbox("Company Name*", company_options, index=0, key="manual_company")
     
             col3, col4 = st.columns(2)
-            due_date = col3.date_input("Due Date (Optional)", key="manual_due_date")
-            amount = col4.number_input("Amount", min_value=0.0, step=0.01, key="manual_amount")
+            invoice_no = col3.text_input("Invoice No*", key="manual_invoice_no")
+            invoice_date = col4.date_input("Invoice Date*", value=date.today(), key="manual_invoice_date")
+    
+            col5, col6 = st.columns(2)
+            due_date = col5.date_input("Due Date", value=date.today(), key="manual_due_date")
+            amount = col6.number_input("Amount*", min_value=0.0, format="%.2f", key="manual_amount")
     
             reference = st.text_input("Reference (Optional)", key="manual_reference")
     
             submitted = st.form_submit_button("✅ Save Invoice")
     
         if submitted:
-            # --- Validations ---
             if not supplier_name or not company_name or not invoice_no or not invoice_date or amount is None:
-                st.warning("⚠️ Please fill all required fields (supplier, company, invoice no, date, and amount).")
+                st.warning("⚠️ Please fill all required fields.")
             else:
                 payload = {
                     "supplier_name": supplier_name,
@@ -599,23 +602,14 @@ elif authentication_status:
                     "invoice_date": invoice_date.strftime("%Y-%m-%d"),
                     "due_date": due_date.strftime("%Y-%m-%d") if due_date else None,
                     "amount": float(amount),
-                    "reference": reference if reference else None,
+                    "reference": reference or None,
                     "status": "Unpaid"
                 }
-        
+    
                 status_code, response = insert_batch_to_supabase([payload])
                 if status_code == 201:
                     st.success("✅ Invoice saved successfully.")
-        
-                    # ✅ Reset input fields
-                    st.session_state.manual_supplier = ""
-                    st.session_state.manual_company = ""
-                    st.session_state.manual_invoice_no = ""
-                    st.session_state.manual_invoice_date = date.today()
-                    st.session_state.manual_due_date = date.today()
-                    st.session_state.manual_amount = 0.0
-                    st.session_state.manual_reference = ""
-        
+                    reset_manual_form()
                     st.rerun()
                 else:
                     st.error("❌ Failed to save invoice.")
