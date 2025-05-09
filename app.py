@@ -597,32 +597,21 @@ elif authentication_status:
         # 📋 Form Inputs
         with st.form("manual_entry_form"):
             col1, col2 = st.columns(2)
-            supplier_name = col1.selectbox(
-                "Supplier Name*", 
-                supplier_options, 
-                index=supplier_options.index(st.session_state["manual_supplier"]) if st.session_state["manual_supplier"] in supplier_options else 0, 
-                key="manual_supplier"
-            )
-
-            company_name = col2.selectbox(
-                "Company Name*", 
-                company_options, 
-                index=company_options.index(st.session_state["manual_company"]) if st.session_state["manual_company"] in company_options else 0, 
-                key="manual_company"
-            )
-
-    
+            col1.selectbox("Supplier Name*", supplier_options, key="manual_supplier")
+            col2.selectbox("Company Name*", company_options, key="manual_company")
+        
             col3, col4 = st.columns(2)
-            invoice_no = col3.text_input("Invoice No*", key="manual_invoice_no")
-            invoice_date = col4.date_input("Invoice Date*", value=st.session_state["manual_invoice_date"], key="manual_invoice_date")
-    
+            col3.text_input("Invoice No*", key="manual_invoice_no")
+            col4.date_input("Invoice Date*", key="manual_invoice_date")
+        
             col5, col6 = st.columns(2)
-            due_date = col5.date_input("Due Date", value=st.session_state["manual_due_date"], key="manual_due_date")
-            amount = col6.number_input("Amount*", min_value=0.0, format="%.2f", key="manual_amount")
-    
-            reference = st.text_input("Reference (Optional)", key="manual_reference")
-    
+            col5.date_input("Due Date", key="manual_due_date")
+            col6.number_input("Amount*", min_value=0.0, format="%.2f", key="manual_amount")
+        
+            st.text_input("Reference (Optional)", key="manual_reference")
+        
             submitted = st.form_submit_button("✅ Save Invoice")
+
     
         # 📤 Handle Save
         if submitted:
