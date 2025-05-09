@@ -571,54 +571,48 @@ elif authentication_status:
     elif tab == "📝 Manual Invoice Entry":
         st.title("📝 Manual Invoice Entry")
     
-        # ✅ Initialize session state
-        if "manual_supplier" not in st.session_state:
-            st.session_state.manual_supplier = ""
-        if "manual_company" not in st.session_state:
-            st.session_state.manual_company = ""
-        if "manual_invoice_no" not in st.session_state:
-            st.session_state.manual_invoice_no = ""
-        if "manual_invoice_date" not in st.session_state:
-            st.session_state.manual_invoice_date = date.today()
-        if "manual_due_date" not in st.session_state:
-            st.session_state.manual_due_date = date.today()
-        if "manual_amount" not in st.session_state:
-            st.session_state.manual_amount = 0.0
-        if "manual_reference" not in st.session_state:
-            st.session_state.manual_reference = ""
+        # ✅ Safe session state initialization BEFORE widgets
+        defaults = {
+            "manual_supplier": "",
+            "manual_company": "",
+            "manual_invoice_no": "",
+            "manual_invoice_date": date.today(),
+            "manual_due_date": date.today(),
+            "manual_amount": 0.0,
+            "manual_reference": ""
+        }
+        for k, v in defaults.items():
+            if k not in st.session_state:
+                st.session_state[k] = v
     
-        # ✅ Then continue with the form rendering...
-
-        # 🔁 Define reset function
+        # 🔁 Reset form values
         def reset_manual_form():
-            st.session_state["manual_supplier"] = ""
-            st.session_state["manual_company"] = ""
-            st.session_state["manual_invoice_no"] = ""
-            st.session_state["manual_invoice_date"] = date.today()
-            st.session_state["manual_due_date"] = date.today()
-            st.session_state["manual_amount"] = 0.0
-            st.session_state["manual_reference"] = ""
+            for k, v in defaults.items():
+                st.session_state[k] = v
     
+        # ✅ Dropdown options
         supplier_options = [""] + get_dropdown_values("name", "supplier_names")
         company_options = [""] + get_dropdown_values("name", "company_names")
     
+        # 📋 Form Inputs
         with st.form("manual_entry_form"):
             col1, col2 = st.columns(2)
-            supplier_name = col1.selectbox("Supplier Name*", supplier_options, index=0, key="manual_supplier")
-            company_name = col2.selectbox("Company Name*", company_options, index=0, key="manual_company")
+            supplier_name = col1.selectbox("Supplier Name*", supplier_options, index=supplier_options.index(st.session_state["manual_supplier"]), key="manual_supplier")
+            company_name = col2.selectbox("Company Name*", company_options, index=company_options.index(st.session_state["manual_company"]), key="manual_company")
     
             col3, col4 = st.columns(2)
             invoice_no = col3.text_input("Invoice No*", key="manual_invoice_no")
-            invoice_date = col4.date_input("Invoice Date*", value=date.today(), key="manual_invoice_date")
+            invoice_date = col4.date_input("Invoice Date*", value=st.session_state["manual_invoice_date"], key="manual_invoice_date")
     
             col5, col6 = st.columns(2)
-            due_date = col5.date_input("Due Date", value=date.today(), key="manual_due_date")
+            due_date = col5.date_input("Due Date", value=st.session_state["manual_due_date"], key="manual_due_date")
             amount = col6.number_input("Amount*", min_value=0.0, format="%.2f", key="manual_amount")
     
             reference = st.text_input("Reference (Optional)", key="manual_reference")
     
             submitted = st.form_submit_button("✅ Save Invoice")
     
+        # 📤 Handle Save
         if submitted:
             if not supplier_name or not company_name or not invoice_no or not invoice_date or amount is None:
                 st.warning("⚠️ Please fill all required fields.")
@@ -638,7 +632,7 @@ elif authentication_status:
                 if status_code == 201:
                     st.success("✅ Invoice saved successfully.")
                     reset_manual_form()
-                    st.session_state["selected_tab"] = "📄 Manual Invoice Entry"
+                    st.session_state["selected_tab"] = "📝 Manual Invoice Entry"
                     st.rerun()
                 else:
                     st.error("❌ Failed to save invoice.")
