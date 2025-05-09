@@ -602,11 +602,20 @@ elif authentication_status:
                     "reference": reference if reference else None,
                     "status": "Unpaid"
                 }
-    
+        
                 status_code, response = insert_batch_to_supabase([payload])
                 if status_code == 201:
                     st.success("✅ Invoice saved successfully.")
-                    st.session_state["clear_manual_form"] = True  # Clear on next run
+        
+                    # ✅ Reset input fields
+                    st.session_state.manual_supplier = ""
+                    st.session_state.manual_company = ""
+                    st.session_state.manual_invoice_no = ""
+                    st.session_state.manual_invoice_date = date.today()
+                    st.session_state.manual_due_date = date.today()
+                    st.session_state.manual_amount = 0.0
+                    st.session_state.manual_reference = ""
+        
                     st.rerun()
                 else:
                     st.error("❌ Failed to save invoice.")
