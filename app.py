@@ -562,27 +562,35 @@ elif authentication_status:
         st.title("📝 Manual Invoice Entry")
     
         # Fetch dropdown options
-        supplier_options = get_dropdown_values("name", "supplier_names")
-        company_options = get_dropdown_values("name", "company_names")
+        supplier_options = [""] + get_dropdown_values("name", "supplier_names")
+        company_options = [""] + get_dropdown_values("name", "company_names")
     
-        # Input fields
+        # Step 1: Supplier & Company (Mandatory)
         col1, col2 = st.columns(2)
-        supplier_name = col1.selectbox("Supplier Name", supplier_options)
-        company_name = col2.selectbox("Company Name", company_options)
+        supplier_name = col1.selectbox("Supplier Name *", supplier_options, index=0)
+        company_name = col2.selectbox("Company Name *", company_options, index=0)
     
-        invoice_no = st.text_input("Invoice No *")
-        invoice_date = st.date_input("Invoice Date *")
-        due_date = st.date_input("Due Date (Optional)", value=None)
-        amount = st.number_input("Amount *", min_value=0.0, step=0.01)
+        # Step 2: Invoice No and Date
+        col3, col4 = st.columns(2)
+        invoice_no = col3.text_input("Invoice No *")
+        invoice_date = col4.date_input("Invoice Date *")
+    
+        # Step 3: Due Date and Amount
+        col5, col6 = st.columns(2)
+        due_date = col5.date_input("Due Date (Optional)", value=None)
+        amount = col6.number_input("Amount *", min_value=0.0, step=0.01)
+    
+        # Step 4: Optional fields
         reference = st.text_input("Reference (Optional)")
         remarks = st.text_area("Remarks (Optional)")
     
+        # Step 5: Submission logic
         if st.button("➕ Save Invoice"):
-            # Validate required fields
-            if not invoice_no or not invoice_date or amount is None:
-                st.warning("⚠️ Please fill in all required fields (marked *).")
+            if not supplier_name or not company_name:
+                st.warning("⚠️ Supplier and Company Name are required.")
+            elif not invoice_no or not invoice_date or amount == 0.0:
+                st.warning("⚠️ Please fill in Invoice No, Date, and Amount.")
             else:
-                # Format date
                 invoice_date_str = invoice_date.strftime("%Y-%m-%d")
                 due_date_str = due_date.strftime("%Y-%m-%d") if due_date else None
     
@@ -610,6 +618,9 @@ elif authentication_status:
     
                     if res.status_code in [200, 201]:
                         st.success(f"✅ Invoice {invoice_no} saved successfully.")
+    
+                        # Reset form (using rerun to clear input fields)
+                        st.experimental_rerun()
                     else:
                         st.error(f"❌ Failed to save invoice. Status: {res.status_code}")
                         st.json(res.json())
