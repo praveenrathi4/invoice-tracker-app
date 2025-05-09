@@ -561,66 +561,76 @@ elif authentication_status:
     elif tab == "📝 Manual Invoice Entry":
         st.title("📝 Manual Invoice Entry")
     
-        # Fetch dropdown options
-        supplier_options = [""] + get_dropdown_values("name", "supplier_names")
-        company_options = [""] + get_dropdown_values("name", "company_names")
+        with st.form("manual_invoice_form"):
+            # Dropdowns
+            col1, col2 = st.columns(2)
+            supplier_name = col1.selectbox("Supplier Name *", [""] + get_dropdown_values("name", "supplier_names"), index=0, key="manual_supplier")
+            company_name = col2.selectbox("Company Name *", [""] + get_dropdown_values("name", "company_names"), index=0, key="manual_company")
     
-        # Step 1: Supplier & Company (Mandatory)
-        col1, col2 = st.columns(2)
-        supplier_name = col1.selectbox("Supplier Name *", supplier_options, index=0)
-        company_name = col2.selectbox("Company Name *", company_options, index=0)
+            # Invoice No and Date
+            col3, col4 = st.columns(2)
+            invoice_no = col3.text_input("Invoice No *", key="manual_invoice_no")
+            invoice_date = col4.date_input("Invoice Date *", key="manual_invoice_date")
     
-        # Step 2: Invoice No and Date
-        col3, col4 = st.columns(2)
-        invoice_no = col3.text_input("Invoice No *")
-        invoice_date = col4.date_input("Invoice Date *")
+            # Due Date and Amount
+            col5, col6 = st.columns(2)
+            due_date = col5.date_input("Due Date (Optional)", value=None, key="manual_due_date")
+            amount = col6.number_input("Amount *", min_value=0.0, step=0.01, key="manual_amount")
     
-        # Step 3: Due Date and Amount
-        col5, col6 = st.columns(2)
-        due_date = col5.date_input("Due Date (Optional)", value=None)
-        amount = col6.number_input("Amount *", min_value=0.0, step=0.01)
+            # Optional fields
+            reference = st.text_input("Reference (Optional)", key="manual_reference")
+            remarks = st.text_area("Remarks (Optional)", key="manual_remarks")
     
-        # Step 4: Optional fields
-        reference = st.text_input("Reference (Optional)")
-        remarks = st.text_area("Remarks (Optional)")
+            submitted = st.form_submit_button("➕ Save Invoice")
     
-        # Step 5: Submission logic
-        if st.button("➕ Save Invoice"):
-            if not supplier_name or not company_name:
-                st.warning("⚠️ Supplier and Company Name are required.")
-            elif not invoice_no or not invoice_date or amount == 0.0:
-                st.warning("⚠️ Please fill in Invoice No, Date, and Amount.")
-            else:
-                invoice_date_str = invoice_date.strftime("%Y-%m-%d")
-                due_date_str = due_date.strftime("%Y-%m-%d") if due_date else None
-    
-                # Check for duplicate
-                check_url = f"{SUPABASE_URL}/rest/v1/invoices?select=invoice_no,invoice_date&invoice_no=eq.{invoice_no}&invoice_date=eq.{invoice_date_str}"
-                check_res = requests.get(check_url, headers=supabase_headers())
-    
-                if check_res.status_code == 200 and check_res.json():
-                    st.error("❌ This invoice already exists.")
+            if submitted:
+                if not supplier_name or not company_name:
+                    st.warning("⚠️ Supplier and Company Name are required.")
+                elif not invoice_no or not invoice_date or amount == 0.0:
+                    st.warning("⚠️ Please fill in Invoice No, Date, and Amount.")
                 else:
-                    payload = {
-                        "supplier_name": supplier_name,
-                        "company_name": company_name,
-                        "invoice_no": invoice_no,
-                        "invoice_date": invoice_date_str,
-                        "due_date": due_date_str,
-                        "amount": amount,
-                        "reference": reference,
-                        "remarks": remarks,
-                        "status": "Unpaid"
-                    }
+                    invoice_date_str = invoice_date.strftime("%Y-%m-%d")
+                    due_date_str = due_date.strftime("%Y-%m-%d") if due_date else None
     
-                    save_url = f"{SUPABASE_URL}/rest/v1/invoices"
-                    res = requests.post(save_url, json=payload, headers={**supabase_headers(), "Prefer": "return=representation"})
+                    # Check for duplicate
+                    check_url = f"{SUPABASE_URL}/rest/v1/invoices?select=invoice_no,invoice_date&invoice_no=eq.{invoice_no}&invoice_date=eq.{invoice_date_str}"
+                    check_res = requests.get(check_url, headers=supabase_headers())
     
-                    if res.status_code in [200, 201]:
-                        st.success(f"✅ Invoice {invoice_no} saved successfully.")
-    
-                        # Reset form (using rerun to clear input fields)
-                        st.rerun()
+                    if check_res.status_code == 200 and check_res.json():
+                        st.error("❌ This invoice already exists.")
                     else:
-                        st.error(f"❌ Failed to save invoice. Status: {res.status_code}")
-                        st.json(res.json())
+                        payload = {
+                            "supplier_name": supplier_name,
+                            "company_name": company_name,
+                            "invoice_no": invoice_no,
+                            "invoice_date": invoice_date_str,
+                            "due_date": due_date_str,
+                            "amount": amount,
+                            "reference": reference,
+                            "remarks": remarks,
+                            "status": "Unpaid"
+                        }
+    
+                        res = requests.post(
+                            f"{SUPABASE_URL}/rest/v1/invoices",
+                            json=payload,
+                            headers={**supabase_headers(), "Prefer": "return=representation"}
+                        )
+    
+                        if res.status_code in [200, 201]:
+                            st.success(f"✅ Invoice {invoice_no} saved successfully.")
+    
+                            # 🔁 Reset form inputs
+                            st.session_state.update({
+                                "manual_supplier": "",
+                                "manual_company": "",
+                                "manual_invoice_no": "",
+                                "manual_invoice_date": date.today(),
+                                "manual_due_date": date.today(),
+                                "manual_amount": 0.0,
+                                "manual_reference": "",
+                                "manual_remarks": ""
+                            })
+                        else:
+                            st.error(f"❌ Failed to save invoice. Status: {res.status_code}")
+                            st.json(res.json())
