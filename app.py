@@ -561,6 +561,24 @@ elif authentication_status:
     elif tab == "📄 Manual Invoice Entry":
         st.title("📄 Manually Add Invoice")
     
+        # ✅ Initialize session state
+        if "manual_supplier" not in st.session_state:
+            st.session_state.manual_supplier = ""
+        if "manual_company" not in st.session_state:
+            st.session_state.manual_company = ""
+        if "manual_invoice_no" not in st.session_state:
+            st.session_state.manual_invoice_no = ""
+        if "manual_invoice_date" not in st.session_state:
+            st.session_state.manual_invoice_date = date.today()
+        if "manual_due_date" not in st.session_state:
+            st.session_state.manual_due_date = date.today()
+        if "manual_amount" not in st.session_state:
+            st.session_state.manual_amount = 0.0
+        if "manual_reference" not in st.session_state:
+            st.session_state.manual_reference = ""
+    
+        # ✅ Then continue with the form rendering...
+
         # 🔁 Define reset function
         def reset_manual_form():
             st.session_state["manual_supplier"] = ""
