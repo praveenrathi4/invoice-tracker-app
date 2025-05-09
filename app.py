@@ -144,12 +144,12 @@ elif authentication_status:
         "⚙️ Manage Master Tables"   # ⬅️ Add this here
     ], index=[
         "📤 Upload Invoices",
+        "📄 Manual Invoice Entry",
         "📋 Outstanding Invoices",
         "✅ Mark as Paid",
         "📁 Paid History",
         "📊 Dashboard",
-        "⚙️ Manage Master Tables",
-        "📄 Manual Invoice Entry"
+        "⚙️ Manage Master Tables"        
     ].index(st.session_state["selected_tab"]), key="selected_tab")
     st.write(f"📍 Tab selected: {tab}")
 
