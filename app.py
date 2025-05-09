@@ -597,8 +597,20 @@ elif authentication_status:
         # 📋 Form Inputs
         with st.form("manual_entry_form"):
             col1, col2 = st.columns(2)
-            supplier_name = col1.selectbox("Supplier Name*", supplier_options, index=supplier_options.index(st.session_state["manual_supplier"]), key="manual_supplier")
-            company_name = col2.selectbox("Company Name*", company_options, index=company_options.index(st.session_state["manual_company"]), key="manual_company")
+            supplier_name = col1.selectbox(
+                "Supplier Name*", 
+                supplier_options, 
+                index=supplier_options.index(st.session_state["manual_supplier"]) if st.session_state["manual_supplier"] in supplier_options else 0, 
+                key="manual_supplier"
+            )
+
+            company_name = col2.selectbox(
+                "Company Name*", 
+                company_options, 
+                index=company_options.index(st.session_state["manual_company"]) if st.session_state["manual_company"] in company_options else 0, 
+                key="manual_company"
+            )
+
     
             col3, col4 = st.columns(2)
             invoice_no = col3.text_input("Invoice No*", key="manual_invoice_no")
