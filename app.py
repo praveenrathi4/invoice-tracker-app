@@ -134,6 +134,7 @@ elif authentication_status:
     st.sidebar.title("🧭 Navigation")
     tab = st.sidebar.radio("Go to", [
         "📤 Upload Invoices",
+        "📝 Manual Invoice Entry",
         "📋 Outstanding Invoices",
         "✅ Mark as Paid",
         "📁 Paid History",
@@ -555,3 +556,60 @@ elif authentication_status:
                 st.rerun()
         else:
             st.info("No records found.")
+
+
+    elif tab == "📝 Manual Invoice Entry":
+        st.title("📝 Manual Invoice Entry")
+    
+        # Fetch dropdown options
+        supplier_options = get_dropdown_values("name", "supplier_names")
+        company_options = get_dropdown_values("name", "company_names")
+    
+        # Input fields
+        col1, col2 = st.columns(2)
+        supplier_name = col1.selectbox("Supplier Name", supplier_options)
+        company_name = col2.selectbox("Company Name", company_options)
+    
+        invoice_no = st.text_input("Invoice No *")
+        invoice_date = st.date_input("Invoice Date *")
+        due_date = st.date_input("Due Date (Optional)", value=None)
+        amount = st.number_input("Amount *", min_value=0.0, step=0.01)
+        reference = st.text_input("Reference (Optional)")
+        remarks = st.text_area("Remarks (Optional)")
+    
+        if st.button("➕ Save Invoice"):
+            # Validate required fields
+            if not invoice_no or not invoice_date or amount is None:
+                st.warning("⚠️ Please fill in all required fields (marked *).")
+            else:
+                # Format date
+                invoice_date_str = invoice_date.strftime("%Y-%m-%d")
+                due_date_str = due_date.strftime("%Y-%m-%d") if due_date else None
+    
+                # Check for duplicate
+                check_url = f"{SUPABASE_URL}/rest/v1/invoices?select=invoice_no,invoice_date&invoice_no=eq.{invoice_no}&invoice_date=eq.{invoice_date_str}"
+                check_res = requests.get(check_url, headers=supabase_headers())
+    
+                if check_res.status_code == 200 and check_res.json():
+                    st.error("❌ This invoice already exists.")
+                else:
+                    payload = {
+                        "supplier_name": supplier_name,
+                        "company_name": company_name,
+                        "invoice_no": invoice_no,
+                        "invoice_date": invoice_date_str,
+                        "due_date": due_date_str,
+                        "amount": amount,
+                        "reference": reference,
+                        "remarks": remarks,
+                        "status": "Unpaid"
+                    }
+    
+                    save_url = f"{SUPABASE_URL}/rest/v1/invoices"
+                    res = requests.post(save_url, json=payload, headers={**supabase_headers(), "Prefer": "return=representation"})
+    
+                    if res.status_code in [200, 201]:
+                        st.success(f"✅ Invoice {invoice_no} saved successfully.")
+                    else:
+                        st.error(f"❌ Failed to save invoice. Status: {res.status_code}")
+                        st.json(res.json())
