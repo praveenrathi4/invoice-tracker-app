@@ -133,7 +133,7 @@ elif authentication_status:
     
     st.sidebar.title("🧭 Navigation")
     if "selected_tab" not in st.session_state:
-        st.session_state["selected_tab"] = "📄 Manual Invoice Entry"
+        st.session_state["selected_tab"] = "📝 Manual Invoice Entry"
     tab = st.sidebar.radio("Go to", [
         "📤 Upload Invoices",
         "📝 Manual Invoice Entry",
