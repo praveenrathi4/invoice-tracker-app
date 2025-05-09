@@ -643,15 +643,17 @@ elif authentication_status:
                 status_code, response = insert_batch_to_supabase([payload])
                 if status_code == 201:
                     st.success("✅ Invoice saved successfully.")
-                    st.session_state["selected_tab"] = "📝 Manual Invoice Entry"
-                    # Clear form values before rerun by resetting them here
-                    st.session_state["manual_supplier"] = ""
-                    st.session_state["manual_company"] = ""
-                    st.session_state["manual_invoice_no"] = ""
-                    st.session_state["manual_invoice_date"] = date.today()
-                    st.session_state["manual_due_date"] = date.today()
-                    st.session_state["manual_amount"] = 0.0
-                    st.session_state["manual_reference"] = ""
+                
+                    # Clear session state values BEFORE rerun
+                    keys_to_clear = [
+                        "manual_supplier", "manual_company", "manual_invoice_no",
+                        "manual_invoice_date", "manual_due_date",
+                        "manual_amount", "manual_reference"
+                    ]
+                    for k in keys_to_clear:
+                        if k in st.session_state:
+                            del st.session_state[k]
+                
                     st.rerun()
 
                 else:
