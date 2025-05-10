@@ -3,7 +3,7 @@ import re
 from datetime import datetime
 from rapidfuzz import fuzz
 import pytesseract
-
+import pandas as pd
 
 # ---------------------- Utility Functions ----------------------
 
