@@ -182,6 +182,7 @@ elif authentication_status:
                         st.error(f"❌ Skipping invalid file: {file.name}. Only PDF files are allowed.")
                         continue
                     extracted_data = extract_invoice_data_from_pdf(file, supplier_name, company_name, is_invoice, use_ai=use_ai)
+                    st.write("📎 Extracted Data:", extracted_data)
                     extracted_list = extracted_data if isinstance(extracted_data, list) else [extracted_data]
 
                     for row in extracted_list:
