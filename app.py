@@ -178,6 +178,9 @@ elif authentication_status:
             else:
                 extracted_rows = []
                 for file in uploaded_files:
+                    if not file.name.lower().endswith(".pdf"):
+                        st.error(f"❌ Skipping invalid file: {file.name}. Only PDF files are allowed.")
+                        continue
                     extracted_data = extract_invoice_data_from_pdf(file, supplier_name, company_name, is_invoice, use_ai=use_ai)
                     extracted_list = extracted_data if isinstance(extracted_data, list) else [extracted_data]
 
