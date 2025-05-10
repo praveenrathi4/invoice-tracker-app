@@ -29,10 +29,11 @@ def extract_equipmax_soa(pdf_path, supplier_name, company_name):
             return None
 
     with pdfplumber.open(pdf_path) as pdf:
-        for page in pdf.pages:
+        for i, page in enumerate(pdf.pages):
             text = page.extract_text()
             print(f"--- Page {i+1} ---")
             print(text)
+
             if not text:
                 continue
             lines = text.split("\n")
