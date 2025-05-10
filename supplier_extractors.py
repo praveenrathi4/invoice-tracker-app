@@ -18,10 +18,40 @@ def format_date(date_str, formats=["%d/%m/%Y", "%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y
 
 # ---------------------- Extractor Functions ----------------------
 
+def extract_recipedia_soa(pdf_path, supplier_name, company_name):
+    rows = []
 
-import re
-import pdfplumber
-from datetime import datetime
+    def parse_date(d):
+        try:
+            return datetime.strptime(d.strip(), "%d/%m/%Y").strftime("%d/%m/%Y")
+        except:
+            return None
+
+    with pdfplumber.open(pdf_path) as pdf:
+        for page in pdf.pages:
+            text = page.extract_text()
+            if not text:
+                continue
+
+            for line in text.splitlines():
+                match = re.match(
+                    r"(\d{2}/\d{2}/\d{4})\s+Invoice\s+(RG\d+)\s+.*?(\d{2}/\d{2}/\d{4})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})",
+                    line
+                )
+                if match:
+                    invoice_date, invoice_no, due_date, amount, _ = match.groups()
+                    rows.append({
+                        "supplier_name": supplier_name,
+                        "company_name": company_name,
+                        "invoice_no": invoice_no,
+                        "invoice_date": parse_date(invoice_date),
+                        "due_date": parse_date(due_date),
+                        "amount": amount.replace(",", ""),
+                        "reference": None
+                    })
+
+    return rows
+
 
 def extract_equipmax_soa(pdf_path, supplier_name, company_name):
     rows = []
@@ -643,6 +673,7 @@ SUPPLIER_EXTRACTORS = {
     ("1800 NO PESTS", True): extract_nopests_soa,
     ("Dutch Colony", False): extract_dutch_colony_invoice,
     ("Equipmax", True): extract_equipmax_soa,
+    ("Recipedia Group", True): extract_recipedia_soa
 
 
     # Add more (supplier_name, is_soa): extractor_function
