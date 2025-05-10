@@ -18,10 +18,6 @@ def format_date(date_str, formats=["%d/%m/%Y", "%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y
 
 # ---------------------- Extractor Functions ----------------------
 
-import re
-import pdfplumber
-from datetime import datetime
-
 def extract_aardwolf_invoice(pdf_path, supplier_name, company_name):
     invoice_no = None
     invoice_date = None
@@ -757,7 +753,7 @@ SUPPLIER_EXTRACTORS = {
     ("Dutch Colony", False): extract_dutch_colony_invoice,
     ("Equipmax", True): extract_equipmax_soa,
     ("Recipedia Group", True): extract_recipedia_soa,
-    ("Ardwolf Pestkare", False): extract_ain_invoice,
+    ("Ardwolf Pestkare", False): extract_aardwolf_invoice,
 
 
     # Add more (supplier_name, is_soa): extractor_function
