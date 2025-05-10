@@ -18,6 +18,47 @@ def format_date(date_str, formats=["%d/%m/%Y", "%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y
 
 # ---------------------- Extractor Functions ----------------------
 
+
+def extract_equipmax_soa(pdf_path, supplier_name, company_name):
+    rows = []
+
+    def parse_date(raw):
+        try:
+            return datetime.strptime(raw.strip(), "%d/%m/%Y").strftime("%d/%m/%Y")
+        except:
+            return None
+
+    with pdfplumber.open(pdf_path) as pdf:
+        for page in pdf.pages:
+            text = page.extract_text()
+            if not text:
+                continue
+            lines = text.split("\n")
+
+            for line in lines:
+                # Match lines like: 27/06/2022 INV2206/244 SERVICE 601.81
+                match = re.match(
+                    r"^(\d{2}/\d{2}/\d{4})\s+(INV\d{4}/\d+)\s+(SERVICE)\s+([\d,]+\.\d{2})$", 
+                    line.strip()
+                )
+                if match:
+                    date_str, invoice_no, reference, amount = match.groups()
+
+                    rows.append({
+                        "supplier_name": supplier_name,
+                        "company_name": company_name,
+                        "invoice_no": invoice_no,
+                        "invoice_date": parse_date(date_str),
+                        "due_date": parse_date(date_str),  # COD Terms
+                        "amount": float(amount.replace(",", "")),
+                        "reference": reference
+                    })
+
+    return rows
+
+
+
+
 def extract_dutch_colony_invoice(pdf_path, supplier_name, company_name):
     rows = []
 
@@ -597,6 +638,7 @@ SUPPLIER_EXTRACTORS = {
     ("1800 NO PESTS", False): extract_nopests_invoice,
     ("1800 NO PESTS", True): extract_nopests_soa,
     ("Dutch Colony", False): extract_dutch_colony_invoice,
+    ("Equipmax", True): extract_equipmax_soa,
 
 
     # Add more (supplier_name, is_soa): extractor_function
