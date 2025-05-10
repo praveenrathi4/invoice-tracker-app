@@ -253,8 +253,10 @@ def extract_nopests_invoice(pdf_path, supplier_name, company_name):
 
 
 
-def extract_gan_teck_invoice(pdf_path, supplier_name, company_name):
+import pdfplumber
+import re
 
+def extract_gan_teck_invoice(pdf_path, supplier_name, company_name):
     with pdfplumber.open(pdf_path) as pdf:
         text = "\n".join([page.extract_text() for page in pdf.pages if page.extract_text()])
 
@@ -279,10 +281,10 @@ def extract_gan_teck_invoice(pdf_path, supplier_name, company_name):
     if match:
         reference = match.group(1)
 
-    # Extract Total Amount
-    match = re.search(r"TOTAL\s+S\$\s*([\d.,]+)", text)
-    if match:
-        amount = match.group(1).replace(",", "")
+    # ✅ Extract only the final TOTAL amount by grabbing all matches and using the last
+    matches = re.findall(r"TOTAL\s+S\$([\d.,]+)", text)
+    if matches:
+        amount = matches[-1].replace(",", "")  # Last occurrence = correct total
 
     # Handle Due Date based on Terms
     if "TERMS CASH" in text.upper() and invoice_date:
