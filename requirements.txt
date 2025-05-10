@@ -8,3 +8,5 @@ bcrypt
 PyYAML
 extra-streamlit-components
 openai
+pytesseract
+pillow
