@@ -18,6 +18,49 @@ def format_date(date_str, formats=["%d/%m/%Y", "%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y
 
 # ---------------------- Extractor Functions ----------------------
 
+def extract_ain_invoice(pdf_path, supplier_name, company_name):
+    with pdfplumber.open(pdf_path) as pdf:
+        text = "\n".join([page.extract_text() for page in pdf.pages if page.extract_text()])
+
+    invoice_no = None
+    invoice_date = None
+    due_date = None
+    amount = None
+    reference = None
+
+    # Extract invoice number
+    match = re.search(r"INVOICE NO\s*:\s*([A-Z]{3}\d+)", text, re.IGNORECASE)
+    if match:
+        invoice_no = match.group(1).strip()
+
+    # Extract invoice date
+    match = re.search(r"INVOICE DATE\s*:\s*(\d{1,2}/\d{1,2}/\d{4})", text)
+    if match:
+        invoice_date_raw = match.group(1).strip()
+        try:
+            invoice_date_obj = datetime.strptime(invoice_date_raw, "%d/%m/%Y")
+            invoice_date = invoice_date_obj.strftime("%d/%m/%Y")
+            due_date = (invoice_date_obj + timedelta(days=30)).strftime("%d/%m/%Y")
+        except:
+            invoice_date = None
+
+    # Extract total amount
+    match = re.search(r"TOTAL AMOUNT\s*\(\$\)\s*([\d,]+\.\d{2})", text, re.IGNORECASE)
+    if match:
+        amount = match.group(1).replace(",", "")
+
+    return {
+        "supplier_name": supplier_name,
+        "company_name": company_name,
+        "invoice_no": invoice_no,
+        "invoice_date": invoice_date,
+        "due_date": due_date,
+        "amount": amount,
+        "reference": reference
+    }
+
+
+
 def extract_recipedia_soa(pdf_path, supplier_name, company_name):
     rows = []
 
@@ -676,7 +719,8 @@ SUPPLIER_EXTRACTORS = {
     ("1800 NO PESTS", True): extract_nopests_soa,
     ("Dutch Colony", False): extract_dutch_colony_invoice,
     ("Equipmax", True): extract_equipmax_soa,
-    ("Recipedia Group", True): extract_recipedia_soa
+    ("Recipedia Group", True): extract_recipedia_soa,
+    ("Ardwolf Pestkare", False): extract_ain_invoice,
 
 
     # Add more (supplier_name, is_soa): extractor_function
