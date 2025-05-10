@@ -18,49 +18,73 @@ def format_date(date_str, formats=["%d/%m/%Y", "%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y
 
 # ---------------------- Extractor Functions ----------------------
 
+import re
+import pdfplumber
+from datetime import datetime
+
 def extract_aardwolf_invoice(pdf_path, supplier_name, company_name):
-
-    with pdfplumber.open(pdf_path) as pdf:
-        text = "\n".join(
-            page.extract_text() for page in pdf.pages if page.extract_text()
-        )
-
-    lines = text.splitlines()
-
     invoice_no = None
     invoice_date = None
     due_date = None
     amount = None
     reference = None
 
-    # 🔍 Extract Invoice No
-    for line in lines:
-        if "invoice no" in line.lower():
-            match = re.search(r"invoice no\s*[:\-]?\s*(\S+)", line, re.IGNORECASE)
-            if match:
-                invoice_no = match.group(1).strip()
-                break
+    with pdfplumber.open(pdf_path) as pdf:
+        text = "\n".join([page.extract_text() for page in pdf.pages if page.extract_text()])
+        lines = text.splitlines()
 
-    # 🔍 Extract Invoice Date
+    # ✅ DEBUG: Print all lines for review
+    print("🔍 All lines extracted from PDF:")
     for line in lines:
+        print(line)
+
+    # ✅ Invoice No
+    for line in lines:
+        match = re.search(r"INVOICE\s+NO\s*[:\-]?\s*(\S+)", line, re.IGNORECASE)
+        if match:
+            invoice_no = match.group(1)
+            break
+
+    # ✅ Invoice Date (robust approach)
+    for i, line in enumerate(lines):
         if "invoice date" in line.lower():
-            match = re.search(r"invoice date\s*[:\-]?\s*(\d{1,2}/\d{1,2}/\d{4})", line, re.IGNORECASE)
-            print(match)
-            if match:
-                invoice_date = match.group(1).strip()
+            # Try to find date in this line or next line
+            for j in range(i, min(i + 2, len(lines))):
+                date_match = re.search(r"\d{1,2}/\d{1,2}/\d{4}", lines[j])
+                if date_match:
+                    invoice_date = date_match.group()
+                    break
+            if invoice_date:
                 break
 
-    # 🔍 Set due date = invoice date if credit term exists
-    if invoice_date and any("credit term" in l.lower() for l in lines):
-        due_date = invoice_date
+    # ✅ Due Date (from credit term = 30 Days)
+    if invoice_date:
+        try:
+            base_date = datetime.strptime(invoice_date, "%d/%m/%Y")
+        except ValueError:
+            base_date = datetime.strptime(invoice_date, "%d/%m/%Y")
+        due_date = (base_date + pd.Timedelta(days=30)).strftime("%d/%m/%Y")
 
-    # 🔍 Extract Total Amount (after "TOTAL AMOUNT" label)
+    # ✅ Amount (look for TOTAL AMOUNT or PAYMENT OF $...)
     for line in lines:
-        if "total amount" in line.lower():
-            match = re.search(r"total amount\s*\(\$\)?\s*([\d.,]+)", line, re.IGNORECASE)
-            if match:
-                amount = match.group(1).replace(",", "").strip()
-                break
+        match = re.search(r"TOTAL AMOUNT.*?\$?\s*([\d,.]+)", line)
+        if not match:
+            match = re.search(r"PAYMENT OF \$?\s*([\d,.]+)", line)
+        if match:
+            amount = match.group(1).replace(",", "")
+            break
+
+    # ✅ Reference: none for this invoice
+    reference = None
+
+    print("✅ Extracted:")
+    print({
+        "invoice_no": invoice_no,
+        "invoice_date": invoice_date,
+        "due_date": due_date,
+        "amount": amount,
+        "reference": reference
+    })
 
     return {
         "supplier_name": supplier_name,
@@ -69,7 +93,7 @@ def extract_aardwolf_invoice(pdf_path, supplier_name, company_name):
         "invoice_date": invoice_date,
         "due_date": due_date,
         "amount": amount,
-        "reference": reference,
+        "reference": reference
     }
 
 
