@@ -18,6 +18,10 @@ def format_date(date_str, formats=["%d/%m/%Y", "%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y
 
 # ---------------------- Extractor Functions ----------------------
 
+import re
+import pdfplumber
+from datetime import datetime, timedelta
+
 def extract_ain_invoice(pdf_path, supplier_name, company_name):
     with pdfplumber.open(pdf_path) as pdf:
         text = "\n".join([page.extract_text() for page in pdf.pages if page.extract_text()])
