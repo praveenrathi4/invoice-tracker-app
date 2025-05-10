@@ -137,7 +137,7 @@ elif authentication_status:
     tab = st.sidebar.radio("Go to", [
         "📤 Upload Invoices",
         "📝 Manual Invoice Entry",
-        "📋 Outstanding Invoices",
+        "🛠️ Manage Invoices",
         "✅ Mark as Paid",
         "📁 Paid History",
         "📊 Dashboard",
@@ -145,7 +145,7 @@ elif authentication_status:
     ], index=[
         "📤 Upload Invoices",
         "📝 Manual Invoice Entry",
-        "📋 Outstanding Invoices",
+        "🛠️ Manage Invoices",
         "✅ Mark as Paid",
         "📁 Paid History",
         "📊 Dashboard",
@@ -286,18 +286,91 @@ elif authentication_status:
             st.download_button("⬇️ Download as Excel", excel.getvalue(), file_name="invoices.xlsx")
     
         return df
+
+
     
-    if tab == "📋 Outstanding Invoices":
-        st.title("📋 Outstanding Invoices")
-        data = get_invoices_by_status("Unpaid")
-        if data:
-            df = pd.DataFrame(data)
-            df = df.drop(columns=["id", "status", "created_at", "paid_date", "paid_via", "remarks"], errors="ignore")
-            df["amount"] = df["amount"].astype(float)
-            filter_and_export(df)
+    elif tab == "🛠️ Manage Invoices":
+        st.title("🛠️ Manage Invoices")
+    
+        # 🔄 Fetch all invoices
+        def fetch_all_invoices():
+            url = f"{SUPABASE_URL}/rest/v1/invoices?select=*"
+            res = requests.get(url, headers=supabase_headers())
+            return res.json() if res.status_code == 200 else []
+    
+        data = fetch_all_invoices()
+    
+        if not data:
+            st.info("📭 No invoices found.")
         else:
-            st.info("🎉 No outstanding invoices.")
+            df = pd.DataFrame(data)
     
+            # 🎯 Filters
+            with st.expander("🔍 Filter Options", expanded=True):
+                col1, col2 = st.columns(2)
+                supplier_filter = col1.text_input("Filter by Supplier Name")
+                company_filter = col2.text_input("Filter by Company Name")
+                date_range = st.date_input("Filter by Invoice Date Range", [])
+    
+            if supplier_filter:
+                df = df[df["supplier_name"].str.contains(supplier_filter, case=False, na=False)]
+            if company_filter:
+                df = df[df["company_name"].str.contains(company_filter, case=False, na=False)]
+            if len(date_range) == 2:
+                df["invoice_date"] = pd.to_datetime(df["invoice_date"], errors="coerce")
+                df = df[
+                    (df["invoice_date"] >= pd.to_datetime(date_range[0])) &
+                    (df["invoice_date"] <= pd.to_datetime(date_range[1]))
+                ]
+    
+            # ✅ Prepare table
+            df["🗑️ Delete"] = False
+            df = df.drop(columns=["id", "created_at", "status"], errors="ignore")
+            editable_cols = ["amount", "due_date", "remarks", "🗑️ Delete"]
+    
+            cols = list(df.columns)
+            df = df[cols]
+    
+            edited = st.data_editor(
+                df,
+                key="manage_invoice_editor",
+                use_container_width=True,
+                num_rows="dynamic",
+                hide_index=True,
+                column_order=cols,
+                disabled=[col for col in cols if col not in editable_cols]
+            )
+    
+            # 🔄 Detect changes
+            changes = edited.compare(df, keep_shape=True, keep_equal=False)
+            modified_rows = changes.index.get_level_values(0).unique().tolist()
+    
+            to_update = edited.loc[modified_rows]
+            to_delete = edited[edited["🗑️ Delete"] == True]
+    
+            # 💾 Update changes
+            if not to_update.empty and st.button("💾 Save Updates"):
+                for _, row in to_update.iterrows():
+                    patch_url = f"{SUPABASE_URL}/rest/v1/invoices?invoice_no=eq.{row['invoice_no']}"
+                    payload = {
+                        "amount": float(row["amount"]) if row.get("amount") else None,
+                        "due_date": row["due_date"],
+                        "remarks": row.get("remarks")
+                    }
+                    requests.patch(patch_url, headers=supabase_headers(), json=payload)
+                st.success("✅ Updated selected invoice(s).")
+                st.rerun()
+    
+            # 🗑️ Delete selected rows
+            if not to_delete.empty and st.button("🗑️ Confirm Delete Selected"):
+                for _, row in to_delete.iterrows():
+                    delete_url = f"{SUPABASE_URL}/rest/v1/invoices?invoice_no=eq.{row['invoice_no']}"
+                    requests.delete(delete_url, headers=supabase_headers())
+                st.success(f"🗑️ Deleted {len(to_delete)} invoice(s).")
+                st.rerun()
+
+
+
     elif tab == "✅ Mark as Paid":
         st.title("✅ Mark Invoices as Paid")
     
