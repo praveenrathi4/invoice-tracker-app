@@ -289,7 +289,7 @@ elif authentication_status:
 
 
     
-    elif tab == "🛠️ Manage Invoices":
+    if tab == "🛠️ Manage Invoices":
         st.title("🛠️ Manage Invoices")
     
         # 🔄 Fetch all invoices
