@@ -2,6 +2,8 @@ import pdfplumber
 import re
 from datetime import datetime
 from rapidfuzz import fuzz
+import pytesseract
+
 
 # ---------------------- Utility Functions ----------------------
 
