@@ -19,6 +19,10 @@ def format_date(date_str, formats=["%d/%m/%Y", "%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y
 # ---------------------- Extractor Functions ----------------------
 
 
+import re
+import pdfplumber
+from datetime import datetime
+
 def extract_equipmax_soa(pdf_path, supplier_name, company_name):
     rows = []
 
@@ -29,36 +33,33 @@ def extract_equipmax_soa(pdf_path, supplier_name, company_name):
             return None
 
     with pdfplumber.open(pdf_path) as pdf:
-        for i, page in enumerate(pdf.pages):
+        for page in pdf.pages:
             text = page.extract_text()
-            print(f"--- Page {i+1} ---")
-            print(text)
-
             if not text:
                 continue
-            lines = text.split("\n")
 
-            for line in lines:
-                # Match lines like: 27/06/2022 INV2206/244 SERVICE 601.81
+            for line in text.split("\n"):
+                # Match pattern: DATE INVOICE_NO ... AMOUNT AMOUNT
                 match = re.match(
-                    r"^(\d{2}/\d{2}/\d{4})\s+(INV\d{4}/\d+)\s+(SERVICE)\s+([\d,]+\.\d{2})$", 
-                    line.strip()
+                    r"^(\d{2}/\d{2}/\d{4})\s+(INV\d{4}/\d{3})\s+.*?([\d,]+\.\d{2})\s+([\d,]+\.\d{2})$",
+                    line
                 )
                 if match:
-                    date_str, invoice_no, reference, amount = match.groups()
+                    date_str, invoice_no, debit, balance = match.groups()
+                    invoice_date = parse_date(date_str)
+                    due_date = invoice_date  # COD terms
 
                     rows.append({
                         "supplier_name": supplier_name,
                         "company_name": company_name,
                         "invoice_no": invoice_no,
-                        "invoice_date": parse_date(date_str),
-                        "due_date": parse_date(date_str),  # COD Terms
-                        "amount": float(amount.replace(",", "")),
-                        "reference": reference
+                        "invoice_date": invoice_date,
+                        "due_date": due_date,
+                        "amount": float(debit.replace(",", "")),
+                        "reference": None
                     })
 
     return rows
-
 
 
 
