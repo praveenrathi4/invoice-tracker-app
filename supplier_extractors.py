@@ -28,12 +28,7 @@ def extract_aardwolf_invoice(pdf_path, supplier_name, company_name):
     with pdfplumber.open(pdf_path) as pdf:
         text = "\n".join([page.extract_text() for page in pdf.pages if page.extract_text()])
         lines = text.splitlines()
-
-    # ✅ DEBUG: Print all lines for review
-    print("🔍 All lines extracted from PDF:")
-    for line in lines:
-        print(line)
-
+ 
     # ✅ Invoice No
     for line in lines:
         match = re.search(r"INVOICE\s+NO\s*[:\-]?\s*(\S+)", line, re.IGNORECASE)
@@ -72,15 +67,6 @@ def extract_aardwolf_invoice(pdf_path, supplier_name, company_name):
 
     # ✅ Reference: none for this invoice
     reference = None
-
-    print("✅ Extracted:")
-    print({
-        "invoice_no": invoice_no,
-        "invoice_date": invoice_date,
-        "due_date": due_date,
-        "amount": amount,
-        "reference": reference
-    })
 
     return {
         "supplier_name": supplier_name,
