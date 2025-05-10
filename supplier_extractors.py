@@ -19,8 +19,6 @@ def format_date(date_str, formats=["%d/%m/%Y", "%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y
 # ---------------------- Extractor Functions ----------------------
 
 def extract_aardwolf_invoice(pdf_path, supplier_name, company_name):
-    import pdfplumber
-    import re
 
     with pdfplumber.open(pdf_path) as pdf:
         text = "\n".join(
@@ -47,6 +45,7 @@ def extract_aardwolf_invoice(pdf_path, supplier_name, company_name):
     for line in lines:
         if "invoice date" in line.lower():
             match = re.search(r"invoice date\s*[:\-]?\s*(\d{1,2}/\d{1,2}/\d{4})", line, re.IGNORECASE)
+            print(match)
             if match:
                 invoice_date = match.group(1).strip()
                 break
