@@ -170,7 +170,7 @@ elif authentication_status:
         supplier_name = st.selectbox("Select Supplier Name", supplier_options, index=0)
         company_name = st.selectbox("Select Company Name", company_options, index=0)
 
-        uploaded_files = st.file_uploader("Upload PDF files", type=["pdf"], accept_multiple_files=True)
+        uploaded_files = st.file_uploader("Upload PDF files", accept_multiple_files=True)
 
         if uploaded_files:
             if not supplier_name or not company_name:
