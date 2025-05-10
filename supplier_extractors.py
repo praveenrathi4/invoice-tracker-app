@@ -27,6 +27,10 @@ def extract_recipedia_soa(pdf_path, supplier_name, company_name):
         except:
             return None
 
+    invoice_pattern = re.compile(
+        r"(\d{2}/\d{2}/\d{4})\s+Invoice\s+(\S+)\s+.+?\s+(\d{2}/\d{2}/\d{4})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})"
+    )
+
     with pdfplumber.open(pdf_path) as pdf:
         for page in pdf.pages:
             text = page.extract_text()
@@ -34,10 +38,7 @@ def extract_recipedia_soa(pdf_path, supplier_name, company_name):
                 continue
 
             for line in text.splitlines():
-                match = re.match(
-                    r"(\d{2}/\d{2}/\d{4})\s+Invoice\s+(RG\d+)\s+.*?(\d{2}/\d{2}/\d{4})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})",
-                    line
-                )
+                match = invoice_pattern.match(line)
                 if match:
                     invoice_date, invoice_no, due_date, amount, _ = match.groups()
                     rows.append({
