@@ -18,6 +18,60 @@ def format_date(date_str, formats=["%d/%m/%Y", "%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y
 
 # ---------------------- Extractor Functions ----------------------
 
+def extract_genie_pro_invoice(pdf_path, supplier_name, company_name):
+    invoice_no = None
+    invoice_date = None
+    due_date = None
+    amount = None
+    reference = None  # No reference found in this format
+
+    lines = []
+    with pdfplumber.open(pdf_path) as pdf:
+        for page in pdf.pages:
+            text = page.extract_text()
+            if text:
+                lines.extend(text.splitlines())
+
+    for i, line in enumerate(lines):
+        lower = line.lower()
+
+        # Invoice No
+        if "invoice" in lower and not invoice_no:
+            match = re.search(r"invoice\s+#?(\d+)", line, re.IGNORECASE)
+            if match:
+                invoice_no = match.group(1)
+
+        # Invoice Date
+        if "date" in lower and "invoice" not in lower and not invoice_date:
+            match = re.search(r"(\d{1,2}/\d{1,2}/\d{4})", line)
+            if match:
+                invoice_date = match.group(1)
+
+        # Due Date
+        if "due date" in lower and not due_date:
+            match = re.search(r"(\d{1,2}/\d{1,2}/\d{4})", line)
+            if match:
+                due_date = match.group(1)
+
+        # Amount
+        if "balance due" in lower and not amount:
+            match = re.search(r"([\d,.]+\.\d{2})", line)
+            if match:
+                amount = match.group(1).replace(",", "")
+
+    return {
+        "supplier_name": supplier_name,
+        "company_name": company_name,
+        "invoice_no": invoice_no,
+        "invoice_date": invoice_date,
+        "due_date": due_date,
+        "amount": amount,
+        "reference": reference
+    }
+
+
+
+
 def extract_aardwolf_invoice(pdf_path, supplier_name, company_name):
     invoice_no = None
     invoice_date = None
@@ -740,6 +794,7 @@ SUPPLIER_EXTRACTORS = {
     ("Equipmax", True): extract_equipmax_soa,
     ("Recipedia Group", True): extract_recipedia_soa,
     ("Ardwolf Pestkare", False): extract_aardwolf_invoice,
+    ("Genie Pro", False): extract_genie_pro_invoice,
 
 
     # Add more (supplier_name, is_soa): extractor_function
