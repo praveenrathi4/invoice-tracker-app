@@ -18,9 +18,16 @@ def format_date(date_str, formats=["%d/%m/%Y", "%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y
 
 # ---------------------- Extractor Functions ----------------------
 
-def extract_ain_invoice(pdf_path, supplier_name, company_name):
+def extract_aardwolf_invoice(pdf_path, supplier_name, company_name):
+    import pdfplumber
+    import re
+
     with pdfplumber.open(pdf_path) as pdf:
-        text = "\n".join([page.extract_text() for page in pdf.pages if page.extract_text()])
+        text = "\n".join(
+            page.extract_text() for page in pdf.pages if page.extract_text()
+        )
+
+    lines = text.splitlines()
 
     invoice_no = None
     invoice_date = None
@@ -28,26 +35,33 @@ def extract_ain_invoice(pdf_path, supplier_name, company_name):
     amount = None
     reference = None
 
-    # Extract invoice number
-    match = re.search(r"INVOICE NO\s*:\s*([A-Z]{3}\d+)", text, re.IGNORECASE)
-    if match:
-        invoice_no = match.group(1).strip()
+    # 🔍 Extract Invoice No
+    for line in lines:
+        if "invoice no" in line.lower():
+            match = re.search(r"invoice no\s*[:\-]?\s*(\S+)", line, re.IGNORECASE)
+            if match:
+                invoice_no = match.group(1).strip()
+                break
 
-    # Extract invoice date
-    match = re.search(r"INVOICE DATE\s*:\s*(\d{1,2}/\d{1,2}/\d{4})", text, re.IGNORECASE)
-    if match:
-        invoice_date_raw = match.group(1).strip()
-        try:
-            invoice_date_obj = datetime.strptime(invoice_date_raw, "%d/%m/%Y")
-            invoice_date = invoice_date_obj.strftime("%d/%m/%Y")
-            due_date = (invoice_date_obj + timedelta(days=30)).strftime("%d/%m/%Y")
-        except:
-            invoice_date = None
+    # 🔍 Extract Invoice Date
+    for line in lines:
+        if "invoice date" in line.lower():
+            match = re.search(r"invoice date\s*[:\-]?\s*(\d{1,2}/\d{1,2}/\d{4})", line, re.IGNORECASE)
+            if match:
+                invoice_date = match.group(1).strip()
+                break
 
-    # Extract total amount
-    match = re.search(r"TOTAL AMOUNT\s*\(\$\)\s*([\d,]+\.\d{2})", text, re.IGNORECASE)
-    if match:
-        amount = match.group(1).replace(",", "")
+    # 🔍 Set due date = invoice date if credit term exists
+    if invoice_date and any("credit term" in l.lower() for l in lines):
+        due_date = invoice_date
+
+    # 🔍 Extract Total Amount (after "TOTAL AMOUNT" label)
+    for line in lines:
+        if "total amount" in line.lower():
+            match = re.search(r"total amount\s*\(\$\)?\s*([\d.,]+)", line, re.IGNORECASE)
+            if match:
+                amount = match.group(1).replace(",", "").strip()
+                break
 
     return {
         "supplier_name": supplier_name,
@@ -56,7 +70,7 @@ def extract_ain_invoice(pdf_path, supplier_name, company_name):
         "invoice_date": invoice_date,
         "due_date": due_date,
         "amount": amount,
-        "reference": reference
+        "reference": reference,
     }
 
 
