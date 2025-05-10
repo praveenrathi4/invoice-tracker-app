@@ -16,6 +16,55 @@ def format_date(date_str, formats=["%d/%m/%Y", "%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y
 
 # ---------------------- Extractor Functions ----------------------
 
+def extract_dutch_colony_invoice(pdf_path, supplier_name, company_name):
+    rows = []
+
+    with pdfplumber.open(pdf_path) as pdf:
+        for i, page in enumerate(pdf.pages):
+            # 🧾 Skip first page if it's a statement
+            if i == 0:
+                first_text = page.extract_text()
+                if first_text and "statement of account" in first_text.lower():
+                    continue
+
+            image = page.to_image(resolution=300).original
+            text = pytesseract.image_to_string(image)
+
+            # 🔍 Extract fields
+            invoice_no = re.search(r'Tax\s+Invoice\s+(\S+)', text)
+            invoice_date = re.search(r'Date\s+(\d{1,2}/\d{1,2}/\d{4})', text)
+            due_date = re.search(r'Due\s+Date\s*=?\s*(\d{1,2}/\d{1,2}/\d{4})', text)
+            reference = re.search(r'P\.?O\.?\s+No\.\s+([A-Z0-9\-]+)', text)
+            amount_matches = re.findall(r'\b\d{1,3}(?:,\d{3})*(?:\.\d{2})\b', text)
+
+            base_amount = None
+            total_amount = None
+
+            if amount_matches:
+                try:
+                    base_amount = float(amount_matches[-1].replace(",", ""))
+                    total_amount = round(base_amount, 2)
+                except:
+                    pass
+
+            row = {
+                "supplier_name": supplier_name,
+                "company_name": company_name,
+                "invoice_no": invoice_no.group(1) if invoice_no else None,
+                "invoice_date": invoice_date.group(1) if invoice_date else None,
+                "due_date": due_date.group(1) if due_date else None,
+                "reference": reference.group(1) if reference else None,
+                "amount": str(total_amount) if total_amount else None
+            }
+
+            if row["invoice_no"] or row["invoice_date"]:
+                rows.append(row)
+
+    return rows
+
+
+
+
 def extract_nopests_soa(pdf_path, supplier_name, company_name):
     import pdfplumber
     import re
@@ -545,6 +594,7 @@ SUPPLIER_EXTRACTORS = {
     ("Gan Teck Kar Investments", False): extract_gan_teck_invoice,
     ("1800 NO PESTS", False): extract_nopests_invoice,
     ("1800 NO PESTS", True): extract_nopests_soa,
+    ("Dutch Colony", False): extract_dutch_colony_invoice,
 
 
     # Add more (supplier_name, is_soa): extractor_function
