@@ -18,6 +18,46 @@ def format_date(date_str, formats=["%d/%m/%Y", "%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y
 
 # ---------------------- Extractor Functions ----------------------
 
+def extract_foodxervices_soa(pdf_path, supplier_name, company_name):
+    rows = []
+
+    def parse_date(d):
+        try:
+            return datetime.strptime(d.strip(), "%d/%m/%Y").strftime("%d/%m/%Y")
+        except:
+            return None
+
+    with pdfplumber.open(pdf_path) as pdf:
+        for page in pdf.pages:
+            text = page.extract_text()
+            if not text:
+                continue
+
+            for line in text.splitlines():
+                # Match lines like: 15/3/2025 14/4/2025 FXINVX-0808188 Sales Invoice FXINVX-0808188 SGD 211.68
+                match = re.search(
+                    r"(\d{1,2}/\d{1,2}/\d{4})\s+"        # Invoice date
+                    r"(\d{1,2}/\d{1,2}/\d{4})\s+"        # Due date
+                    r"(FXINVX-\d+).*?"                   # Invoice number
+                    r"SGD\s+([\d,]+\.\d{2})",            # Amount
+                    line
+                )
+                if match:
+                    invoice_date, due_date, invoice_no, amount = match.groups()
+                    rows.append({
+                        "supplier_name": supplier_name,
+                        "company_name": company_name,
+                        "invoice_no": invoice_no,
+                        "invoice_date": parse_date(invoice_date),
+                        "due_date": parse_date(due_date),
+                        "amount": float(amount.replace(",", "")),
+                        "reference": None
+                    })
+
+    return rows
+
+
+
 def extract_genie_pro_invoice(pdf_path, supplier_name, company_name):
     invoice_no = None
     invoice_date = None
@@ -795,6 +835,7 @@ SUPPLIER_EXTRACTORS = {
     ("Recipedia Group", True): extract_recipedia_soa,
     ("Ardwolf Pestkare", False): extract_aardwolf_invoice,
     ("Genie Pro", False): extract_genie_pro_invoice,
+    ("Food Xervices", True): extract_foodxervices_soa,
 
 
     # Add more (supplier_name, is_soa): extractor_function
