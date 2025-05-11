@@ -18,6 +18,47 @@ def format_date(date_str, formats=["%d/%m/%Y", "%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y
 
 # ---------------------- Extractor Functions ----------------------
 
+def extract_dawood_exports_soa(pdf_path, supplier_name, company_name):
+    import pdfplumber
+    import re
+    from datetime import datetime
+
+    rows = []
+
+    def parse_date(raw_date):
+        try:
+            return datetime.strptime(raw_date.strip(), "%d/%m/%Y").strftime("%d/%m/%Y")
+        except:
+            return None
+
+    with pdfplumber.open(pdf_path) as pdf:
+        for page in pdf.pages:
+            text = page.extract_text()
+            if not text:
+                continue
+
+            for line in text.split("\n"):
+                # Match invoice lines like: IN 10379765 202502190056 20/02/2025 20/02/2025 SGD 156.96
+                match = re.match(
+                    r"IN\s+(\d+)\s+(\d+)\s+(\d{2}/\d{2}/\d{4})\s+(\d{2}/\d{2}/\d{4})\s+SGD\s+([\d.,]+)",
+                    line
+                )
+                if match:
+                    invoice_no, reference, post_date, due_date, amount = match.groups()
+                    rows.append({
+                        "supplier_name": supplier_name,
+                        "company_name": company_name,
+                        "invoice_no": invoice_no.strip(),
+                        "invoice_date": parse_date(post_date),
+                        "due_date": parse_date(due_date),
+                        "amount": amount.replace(",", "").strip(),
+                        "reference": reference.strip()
+                    })
+
+    return rows
+
+
+
 def extract_tipo_novena_electric_invoice(pdf_path, supplier_name, company_name):
     invoice_no = None
     invoice_date = None
@@ -897,6 +938,7 @@ SUPPLIER_EXTRACTORS = {
     ("Genie Pro", False): extract_genie_pro_invoice,
     ("Food Xervices", True): extract_foodxervices_inc_soa,
     ("Electric Tipo Novena - RR60063", False): extract_tipo_novena_electric_invoice,
+    ("Dawood Exports", True): extract_dawood_exports_soa,
 
 
     # Add more (supplier_name, is_soa): extractor_function
