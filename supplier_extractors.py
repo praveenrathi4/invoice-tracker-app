@@ -34,25 +34,36 @@ def extract_foodxervices_soa(pdf_path, supplier_name, company_name):
                 continue
 
             for line in text.splitlines():
-                # Match lines like: 15/3/2025 14/4/2025 FXINVX-0808188 Sales Invoice FXINVX-0808188 SGD 211.68
+                # Pattern 1: Format A
                 match = re.search(
-                    r"(\d{1,2}/\d{1,2}/\d{4})\s+"        # Invoice date
-                    r"(\d{1,2}/\d{1,2}/\d{4})\s+"        # Due date
-                    r"(FXINVX-\d+).*?"                   # Invoice number
+                    r"(\d{1,2}/\d{1,2}/\d{4})\s+"        # Invoice Date
+                    r"(\d{1,2}/\d{1,2}/\d{4})\s+"        # Due Date
+                    r"(FXINVX-\d+).*?"                   # Invoice Number
                     r"SGD\s+([\d,]+\.\d{2})",            # Amount
                     line
                 )
-                if match:
+                if not match:
+                    # Pattern 2: Format B (New structure: date, invoice no, due date, SGD, debit, credit, balance)
+                    match = re.search(
+                        r"(\d{1,2}/\d{1,2}/\d{4})\s+(FXINVX-\d+)\s+(\d{1,2}/\d{1,2}/\d{4})\s+SGD\s+([\d,]+\.\d{2})",
+                        line
+                    )
+                    if match:
+                        invoice_date, invoice_no, due_date, amount = match.groups()
+                    else:
+                        continue
+                else:
                     invoice_date, due_date, invoice_no, amount = match.groups()
-                    rows.append({
-                        "supplier_name": supplier_name,
-                        "company_name": company_name,
-                        "invoice_no": invoice_no,
-                        "invoice_date": parse_date(invoice_date),
-                        "due_date": parse_date(due_date),
-                        "amount": float(amount.replace(",", "")),
-                        "reference": None
-                    })
+
+                rows.append({
+                    "supplier_name": supplier_name,
+                    "company_name": company_name,
+                    "invoice_no": invoice_no,
+                    "invoice_date": parse_date(invoice_date),
+                    "due_date": parse_date(due_date),
+                    "amount": float(amount.replace(",", "")),
+                    "reference": None
+                })
 
     return rows
 
