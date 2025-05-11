@@ -18,7 +18,7 @@ def format_date(date_str, formats=["%d/%m/%Y", "%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y
 
 # ---------------------- Extractor Functions ----------------------
 
-def extract_foodxervices_soa(pdf_path, supplier_name, company_name):
+def extract_foodxervices_inc_soa(pdf_path, supplier_name, company_name):
     rows = []
 
     def parse_date(d):
@@ -846,7 +846,7 @@ SUPPLIER_EXTRACTORS = {
     ("Recipedia Group", True): extract_recipedia_soa,
     ("Ardwolf Pestkare", False): extract_aardwolf_invoice,
     ("Genie Pro", False): extract_genie_pro_invoice,
-    ("Food Xervices", True): extract_foodxervices_soa,
+    ("Food Xervices", True): extract_foodxervices_inc_soa,
 
 
     # Add more (supplier_name, is_soa): extractor_function
