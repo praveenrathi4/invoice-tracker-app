@@ -18,6 +18,55 @@ def format_date(date_str, formats=["%d/%m/%Y", "%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y
 
 # ---------------------- Extractor Functions ----------------------
 
+def extract_tipo_electric_invoice(pdf_path, supplier_name, company_name):
+    invoice_no = None
+    invoice_date = None
+    due_date = None
+    amount = None
+    reference = None  # Not found, will stay None
+
+    with pdfplumber.open(pdf_path) as pdf:
+        text = "\n".join(page.extract_text() for page in pdf.pages if page.extract_text())
+
+    # Invoice No
+    match = re.search(r"Invoice No[:\s]+(RR\d+)", text)
+    if match:
+        invoice_no = match.group(1)
+
+    # Invoice Date
+    match = re.search(r"Date of Invoice[:\s]+(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{2})", text)
+    if match:
+        day, month_str, year_suffix = match.groups()
+        try:
+            invoice_date = datetime.strptime(f"{day} {month_str} 20{year_suffix}", "%d %b %Y").strftime("%d/%m/%Y")
+        except ValueError:
+            pass
+
+    # Due Date
+    match = re.search(r"due on (\d{1,2})\s+([A-Za-z]{3,})\s+(\d{2})", text)
+    if match:
+        day, month_str, year_suffix = match.groups()
+        try:
+            due_date = datetime.strptime(f"{day} {month_str} 20{year_suffix}", "%d %b %Y").strftime("%d/%m/%Y")
+        except ValueError:
+            pass
+
+    # Amount
+    match = re.search(r"Total\s+Current\s+charges\s+due.+?\$\s*([\d.,]+)", text)
+    if match:
+        amount = match.group(1).replace(",", "")
+
+    return {
+        "supplier_name": supplier_name,
+        "company_name": company_name,
+        "invoice_no": invoice_no,
+        "invoice_date": invoice_date,
+        "due_date": due_date,
+        "amount": amount,
+        "reference": reference
+    }
+
+
 def extract_foodxervices_inc_soa(pdf_path, supplier_name, company_name):
     rows = []
 
@@ -847,6 +896,7 @@ SUPPLIER_EXTRACTORS = {
     ("Ardwolf Pestkare", False): extract_aardwolf_invoice,
     ("Genie Pro", False): extract_genie_pro_invoice,
     ("Food Xervices", True): extract_foodxervices_inc_soa,
+    ("Electric Tipo Novena - RR60063", False): extract_tipo_novena_electric_invoice,
 
 
     # Add more (supplier_name, is_soa): extractor_function
