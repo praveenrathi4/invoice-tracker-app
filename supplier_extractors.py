@@ -18,7 +18,7 @@ def format_date(date_str, formats=["%d/%m/%Y", "%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y
 
 # ---------------------- Extractor Functions ----------------------
 
-def extract_tipo_electric_invoice(pdf_path, supplier_name, company_name):
+def extract_tipo_novena_electric_invoice(pdf_path, supplier_name, company_name):
     invoice_no = None
     invoice_date = None
     due_date = None
