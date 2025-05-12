@@ -18,6 +18,45 @@ def format_date(date_str, formats=["%d/%m/%Y", "%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y
 
 # ---------------------- Extractor Functions ----------------------
 
+def extract_fu_luxe_soa(pdf_path, supplier_name, company_name):
+
+    def parse_date(raw):
+        try:
+            return datetime.strptime(raw.strip(), "%d %b %y").strftime("%d/%m/%Y")
+        except:
+            try:
+                return datetime.strptime(raw.strip(), "%d %b %Y").strftime("%d/%m/%Y")
+            except:
+                return None
+
+    rows = []
+
+    with pdfplumber.open(pdf_path) as pdf:
+        for page in pdf.pages:
+            lines = page.extract_text().split("\n")
+
+            for line in lines:
+                match = re.match(
+                    r"^(\d{2} \w{3} \d{2})\s+Invoice #\s+(INV-\d+)\s+.*?(\d{2} \w{3} \d{2})\s+([\d.,]+)\s+([\d.,]+)$",
+                    line.strip()
+                )
+                if match:
+                    invoice_date_raw, invoice_no, due_date_raw, amount, balance = match.groups()
+
+                    rows.append({
+                        "supplier_name": supplier_name,
+                        "company_name": company_name,
+                        "invoice_no": invoice_no,
+                        "invoice_date": parse_date(invoice_date_raw),
+                        "due_date": parse_date(due_date_raw),
+                        "amount": balance.replace(",", ""),
+                        "reference": None
+                    })
+
+    return rows
+
+
+
 def extract_dawood_exports_soa(pdf_path, supplier_name, company_name):
 
     rows = []
@@ -936,6 +975,7 @@ SUPPLIER_EXTRACTORS = {
     ("Food Xervices", True): extract_foodxervices_inc_soa,
     ("Electric Tipo Novena - RR60063", False): extract_tipo_novena_electric_invoice,
     ("Dawood Exports", True): extract_dawood_exports_soa,
+    ("Fuluxe", True): extract_fu_luxe_soa,
 
 
     # Add more (supplier_name, is_soa): extractor_function
