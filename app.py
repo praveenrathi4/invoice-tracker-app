@@ -211,6 +211,10 @@ elif authentication_status:
                         num_rows="dynamic"
                     )
 
+                    if not is_invoice and "amount" in edited_df.columns:
+                        total_amt = edited_df["amount"].fillna(0).sum()
+                        st.markdown(f"### 🧮 Total Extracted Amount: **SGD {total_amt:,.2f}**")
+
                     for col in ["invoice_date", "due_date"]:
                         if col in edited_df.columns:
                             edited_df[col] = pd.to_datetime(edited_df[col], errors="coerce").dt.strftime("%Y-%m-%d")
