@@ -1,6 +1,6 @@
 import pdfplumber
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from rapidfuzz import fuzz
 import pytesseract
 import pandas as pd
