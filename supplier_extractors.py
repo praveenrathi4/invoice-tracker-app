@@ -18,6 +18,54 @@ def format_date(date_str, formats=["%d/%m/%Y", "%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y
 
 # ---------------------- Extractor Functions ----------------------
 
+def extract_bidfood_soa(pdf_path, supplier_name, company_name):
+    rows = []
+
+    def parse_date(raw_date):
+        for fmt in ("%d/%m/%y", "%d/%m/%Y"):
+            try:
+                return datetime.strptime(raw_date.strip(), fmt).strftime("%d/%m/%Y")
+            except:
+                continue
+        return None
+
+    credit_days = 7  # as per SOA credit terms
+
+    with pdfplumber.open(pdf_path) as pdf:
+        for page in pdf.pages:
+            text = page.extract_text()
+            if not text or "STATEMENT" not in text.upper():
+                continue
+
+            for line in text.splitlines():
+                # Match with or without reference
+                match = re.match(
+                    r"(\d{2}/\d{2}/\d{2})\s+Invoice\s+([A-Z0-9\-]+)(?:\s+([A-Z0-9]+))?\s+\d+\s+[\d,.]+\s+[\d,.]+\s+([\d,.]+)",
+                    line
+                )
+                if match:
+                    invoice_date_raw, invoice_no, reference, amount_str = match.groups()
+                    invoice_date = parse_date(invoice_date_raw)
+                    due_date = (
+                        datetime.strptime(invoice_date, "%d/%m/%Y") + timedelta(days=credit_days)
+                    ).strftime("%d/%m/%Y") if invoice_date else None
+                    amount = float(amount_str.replace(",", ""))
+
+                    rows.append({
+                        "supplier_name": supplier_name,
+                        "company_name": company_name,
+                        "invoice_no": invoice_no,
+                        "invoice_date": invoice_date,
+                        "due_date": due_date,
+                        "amount": amount,
+                        "reference": reference if reference else None
+                    })
+
+    return rows
+
+
+
+
 def extract_fu_luxe_soa(pdf_path, supplier_name, company_name):
 
     def parse_date(raw):
@@ -976,6 +1024,7 @@ SUPPLIER_EXTRACTORS = {
     ("Electric Tipo Novena - RR60063", False): extract_tipo_novena_electric_invoice,
     ("Dawood Exports", True): extract_dawood_exports_soa,
     ("Fuluxe", True): extract_fu_luxe_soa,
+    ("Bidfood", True): extract_bidfood_soa,
 
 
     # Add more (supplier_name, is_soa): extractor_function
