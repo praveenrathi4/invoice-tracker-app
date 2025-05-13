@@ -18,10 +18,6 @@ def format_date(date_str, formats=["%d/%m/%Y", "%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y
 
 # ---------------------- Extractor Functions ----------------------
 
-import pdfplumber
-import re
-from datetime import datetime, timedelta
-
 def extract_bidfood_soa(pdf_path, supplier_name, company_name):
     rows = []
 
