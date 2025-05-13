@@ -18,6 +18,10 @@ def format_date(date_str, formats=["%d/%m/%Y", "%Y-%m-%d", "%d-%b-%Y", "%d-%m-%Y
 
 # ---------------------- Extractor Functions ----------------------
 
+import pdfplumber
+import re
+from datetime import datetime, timedelta
+
 def extract_bidfood_soa(pdf_path, supplier_name, company_name):
     rows = []
 
@@ -29,7 +33,7 @@ def extract_bidfood_soa(pdf_path, supplier_name, company_name):
                 continue
         return None
 
-    credit_days = 7  # as per SOA credit terms
+    credit_days = 7  # Based on "Credit Terms: 7 Days"
 
     with pdfplumber.open(pdf_path) as pdf:
         for page in pdf.pages:
@@ -38,14 +42,14 @@ def extract_bidfood_soa(pdf_path, supplier_name, company_name):
                 continue
 
             for line in text.splitlines():
-                # Match with or without reference
+                # Match line with optional reference
                 match = re.match(
-                    r"(\d{2}/\d{2}/\d{2})\s+Invoice\s+([A-Z0-9\-]+)(?:\s+([A-Z0-9]+))?\s+\d+\s+[\d,.]+\s+[\d,.]+\s+([\d,.]+)",
+                    r"(\d{2}/\d{2}/\d{2})\s+Invoice\s+([A-Z0-9\-]+)(?:\s+([A-Z0-9]+))?\s+\d+\s+([\d,.]+)\s+[\d,.]+\s+[\d,.]+",
                     line
                 )
                 if match:
-                    invoice_date_raw, invoice_no, reference, amount_str = match.groups()
-                    invoice_date = parse_date(invoice_date_raw)
+                    raw_date, invoice_no, reference, amount_str = match.groups()
+                    invoice_date = parse_date(raw_date)
                     due_date = (
                         datetime.strptime(invoice_date, "%d/%m/%Y") + timedelta(days=credit_days)
                     ).strftime("%d/%m/%Y") if invoice_date else None
@@ -58,7 +62,7 @@ def extract_bidfood_soa(pdf_path, supplier_name, company_name):
                         "invoice_date": invoice_date,
                         "due_date": due_date,
                         "amount": amount,
-                        "reference": reference if reference else None
+                        "reference": reference or None
                     })
 
     return rows
