@@ -251,7 +251,13 @@ elif authentication_status:
                         st.dataframe(unique_df)
 
                         if not unique_df.empty and st.button("✅ Save to Supabase"):
-                            status_code, response = insert_batch_to_supabase(unique_df.to_dict(orient="records"))
+                            cleaned_rows = []
+                            for row in unique_df.to_dict(orient="records"):
+                                cleaned = {k: (None if pd.isna(v) else v) for k, v in row.items()}
+                                cleaned_rows.append(cleaned)
+                        
+                            status_code, response = insert_batch_to_supabase(cleaned_rows)
+                            # status_code, response = insert_batch_to_supabase(unique_df.to_dict(orient="records"))
                             if status_code == 201:
                                 st.success("✅ Data saved to Supabase.")
                                 if not duplicates_df.empty:
